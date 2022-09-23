@@ -6,10 +6,10 @@ nodes_num,1000
 edges_num,5000
 tau,0.95
 pooling_factor,2
-approach_name,Simple-SLP
-task_time,0:00:14.687767
-ss_cost,423674898163.91675
+approach_name,ID-SLP
+task_time,0:00:21.920364
+ss_cost,78561995907.66283
 termination_parm,0.0001
 opt_gap,0.01
 max_iter_num,300
-local_sol_num,20
+local_sol_num,5

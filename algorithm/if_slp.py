@@ -10,13 +10,11 @@ class IterativeFixingSLP(BaseSLP):
         self.stable_finding_iter = stable_finding_iter
 
     @timer
-    def get_policy(self, solver='GRB', stability_type='cv', fix_type='partial', stability_threshold=0.0):
-        if stability_type == 'kl' or 'cn':
-            self.init_beta_para()
-        best_sol = self.get_slp_sol(solver, stability_type, fix_type, stability_threshold)
+    def get_policy(self, solver='GRB', fix_type='partial', stability_threshold=0.0):
+        best_sol = self.get_slp_sol(solver, fix_type, stability_threshold)
         bs_dict = {node: self.db_func[node](best_sol['CT'][node]) for node in self.all_nodes}
         ss_dict = {node: self.vb_func[node](best_sol['CT'][node]) for node in self.all_nodes}
-        method = 'IF-SLP_' + solver + '_' + stability_type + '_' + fix_type
+        method = 'IF-SLP_' + solver + '_' + fix_type
         cost = cal_cost(self.hc_dict, ss_dict, method=method)
 
         policy = Policy(self.all_nodes)
@@ -26,7 +24,7 @@ class IterativeFixingSLP(BaseSLP):
         policy.update_ss_cost(cost)
         return policy
 
-    def get_slp_sol(self, solver, stability_type, fix_type, stability_threshold):
+    def get_slp_sol(self, solver, fix_type, stability_threshold):
         nodes_info = {'fix_S_nodes': set(), 'fix_SI_nodes': set(), 'fix_CT_nodes': set(),
                       'completely_fix_nodes': set(), 'completely_free_nodes': self.all_nodes,
                       'solely_fix_S_nodes': set(), 'free_S_nodes': self.all_nodes,
@@ -45,10 +43,8 @@ class IterativeFixingSLP(BaseSLP):
             else:
                 raise AttributeError('undefined fix type')
             if len(self.results) > 0:
-                if stability_type == 'kl' or 'cn':
-                    self.update_beta_para()
                 if len(self.results) % self.stable_finding_iter == 0:
-                    nodes_info = self.get_nodes_info(stability_type, stability_threshold)
+                    nodes_info = self.get_nodes_info(stability_threshold)
         best_sol = self.output_results()
         return best_sol
 

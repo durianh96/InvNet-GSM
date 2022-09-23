@@ -50,8 +50,6 @@ class BaseSLP:
         return sol
 
     def cal_para(self, CT):
-        # CT = {node: float(ct) for node, ct in CT.items()}
-        # print(self.grad_vb_func)
         A = {node: self.hc_dict[node] * self.grad_vb_func[node](max(ctk, EPS)) for node, ctk in CT.items()}
         B = {node: self.hc_dict[node] * self.vb_func[node](max(ctk, EPS)) - A[node] * ctk for node, ctk in CT.items()}
         obj_para = {'A': A, 'B': B}
@@ -255,7 +253,7 @@ class BaseSLP:
             logger.error(error_sol)
         return best_sol
 
-    def get_nodes_info(self, stability_type, stability_threshold):
+    def get_nodes_info(self, stability_threshold):
         node_S_results = {node: [r['S'][node] for r in self.results] for node in self.all_nodes}
         node_S_mean = {node: np.mean(node_S_results[node]) for node in self.all_nodes}
 
@@ -265,24 +263,15 @@ class BaseSLP:
         node_CT_results = {node: [r['CT'][node] for r in self.results] for node in self.all_nodes}
         node_CT_mean = {node: np.mean(node_CT_results[node]) for node in self.all_nodes}
 
-        if stability_type == 'kl':
-            S_stat_dict = self.get_last_kl(var_type='S')
-            SI_stat_dict = self.get_last_kl(var_type='SI')
-            CT_stat_dict = self.get_last_kl(var_type='CT')
-        elif stability_type == 'cn':
-            S_stat_dict = self.get_last_cn(var_type='S')
-            SI_stat_dict = self.get_last_cn(var_type='SI')
-            CT_stat_dict = self.get_last_cn(var_type='CT')
-        else:
-            node_S_std = {node: np.std(node_S_results[node]) for node in self.all_nodes}
-            S_stat_dict = {node: node_S_std[node] / (node_S_mean[node] if node_S_mean[node] > 0 else 1)
-                           for node in self.all_nodes}
-            node_SI_std = {node: np.std(node_SI_results[node]) for node in self.all_nodes}
-            SI_stat_dict = {node: node_SI_std[node] / (node_SI_mean[node] if node_SI_mean[node] > 0 else 1)
-                            for node in self.all_nodes}
-            node_CT_std = {node: np.std(node_CT_results[node]) for node in self.all_nodes}
-            CT_stat_dict = {node: node_CT_std[node] / (node_CT_mean[node] if node_CT_mean[node] > 0 else 1)
-                            for node in self.all_nodes}
+        node_S_std = {node: np.std(node_S_results[node]) for node in self.all_nodes}
+        S_stat_dict = {node: node_S_std[node] / (node_S_mean[node] if node_S_mean[node] > 0 else 1)
+                       for node in self.all_nodes}
+        node_SI_std = {node: np.std(node_SI_results[node]) for node in self.all_nodes}
+        SI_stat_dict = {node: node_SI_std[node] / (node_SI_mean[node] if node_SI_mean[node] > 0 else 1)
+                        for node in self.all_nodes}
+        node_CT_std = {node: np.std(node_CT_results[node]) for node in self.all_nodes}
+        CT_stat_dict = {node: node_CT_std[node] / (node_CT_mean[node] if node_CT_mean[node] > 0 else 1)
+                        for node in self.all_nodes}
 
         stationary_S_node = [node for node, v in S_stat_dict.items() if v <= stability_threshold]
         stationary_SI_node = [node for node, v in SI_stat_dict.items() if v <= stability_threshold]
@@ -333,79 +322,3 @@ class BaseSLP:
                       'completely_fix_S': completely_fix_S, 'completely_fix_SI': completely_fix_SI,
                       'completely_fix_CT': completely_fix_CT}
         return nodes_info
-
-    def init_beta_para(self):
-        self.S_beta_para = {'alpha': {node: [1] for node in self.all_nodes},
-                            'beta': {node: [1] for node in self.all_nodes}}
-        self.SI_beta_para = {'alpha': {node: [1] for node in self.all_nodes},
-                             'beta': {node: [1] for node in self.all_nodes}}
-        self.CT_beta_para = {'alpha': {node: [1] for node in self.all_nodes},
-                             'beta': {node: [1] for node in self.all_nodes}}
-        self.S_ub = {node: min(self.sla_dict.get(node, 9999), self.cum_lt_dict[node]) for node in self.all_nodes}
-        self.SI_ub = {node: self.cum_lt_dict[node] - self.lt_dict[node] for node in self.all_nodes}
-        self.CT_ub = {node: self.cum_lt_dict[node] for node in self.all_nodes}
-
-    def update_beta_para(self):
-        new_S = self.results[-1]['S']
-        new_SI = self.results[-1]['SI']
-        new_CT = self.results[-1]['CT']
-        for node in self.all_nodes:
-            # update S para
-            if self.S_ub[node] > 0:
-                new_S_alpha = self.S_beta_para['alpha'][node][-1] + (new_S[node] / self.S_ub[node])
-                new_S_beta = self.S_beta_para['beta'][node][-1] + 1 - (new_S[node] / self.S_ub[node])
-                self.S_beta_para['alpha'][node].append(new_S_alpha)
-                self.S_beta_para['beta'][node].append(new_S_beta)
-            else:
-                self.S_beta_para['alpha'][node].append(self.S_beta_para['alpha'][node][-1])
-                self.S_beta_para['beta'][node].append(self.S_beta_para['beta'][node][-1])
-            # update SI para
-            if self.SI_ub[node] > 0:
-                new_SI_alpha = self.SI_beta_para['alpha'][node][-1] + (new_SI[node] / self.SI_ub[node])
-                new_SI_beta = self.SI_beta_para['beta'][node][-1] + 1 - (new_SI[node] / self.SI_ub[node])
-                self.SI_beta_para['alpha'][node].append(new_SI_alpha)
-                self.SI_beta_para['beta'][node].append(new_SI_beta)
-            else:
-                self.SI_beta_para['alpha'][node].append(self.SI_beta_para['alpha'][node][-1])
-                self.SI_beta_para['beta'][node].append(self.SI_beta_para['beta'][node][-1])
-            # update CT para
-            if self.CT_ub[node] > 0:
-                new_CT_alpha = self.CT_beta_para['alpha'][node][-1] + (new_CT[node] / self.CT_ub[node])
-                new_CT_beta = self.CT_beta_para['beta'][node][-1] + 1 - (new_CT[node] / self.CT_ub[node])
-                self.CT_beta_para['alpha'][node].append(new_CT_alpha)
-                self.CT_beta_para['beta'][node].append(new_CT_beta)
-            else:
-                self.CT_beta_para['alpha'][node].append(self.CT_beta_para['alpha'][node][-1])
-                self.CT_beta_para['beta'][node].append(self.CT_beta_para['beta'][node][-1])
-
-    def get_last_cn(self, var_type):
-        if var_type == 'S':
-            cn_dict = {node: chernoff_distance(self.S_beta_para['alpha'][node][-2], self.S_beta_para['beta'][node][-2],
-                                               self.S_beta_para['alpha'][node][-1], self.S_beta_para['beta'][node][-1])
-                       for node in self.all_nodes}
-        elif var_type == 'SI':
-            cn_dict = {
-                node: chernoff_distance(self.SI_beta_para['alpha'][node][-2], self.SI_beta_para['beta'][node][-2],
-                                        self.SI_beta_para['alpha'][node][-1], self.SI_beta_para['beta'][node][-1])
-                for node in self.all_nodes}
-        else:
-            cn_dict = {
-                node: chernoff_distance(self.CT_beta_para['alpha'][node][-2], self.CT_beta_para['beta'][node][-2],
-                                        self.CT_beta_para['alpha'][node][-1], self.CT_beta_para['beta'][node][-1])
-                for node in self.all_nodes}
-        return cn_dict
-
-    def get_last_kl(self, var_type):
-        if var_type == 'S':
-            kl_dict = {node: kl_divergence(self.S_beta_para['alpha'][node][-2], self.S_beta_para['beta'][node][-2],
-                                           self.S_beta_para['alpha'][node][-1], self.S_beta_para['beta'][node][-1])
-                       for node in self.all_nodes}
-        elif var_type == 'SI':
-            kl_dict = {node: kl_divergence(self.SI_beta_para['alpha'][node][-2], self.SI_beta_para['beta'][node][-2],
-                                           self.SI_beta_para['alpha'][node][-1], self.SI_beta_para['beta'][node][-1])
-                       for node in self.all_nodes}
-        else:
-            kl_dict = {node: kl_divergence(self.CT_beta_para['alpha'][node][-2], self.CT_beta_para['beta'][node][-2],
-                                           self.CT_beta_para['alpha'][node][-1], self.CT_beta_para['beta'][node][-1])
-                       for node in self.all_nodes}
-        return kl_dict

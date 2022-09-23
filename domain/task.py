@@ -74,6 +74,6 @@ class Task:
         task_info_df = pd.DataFrame.from_dict(self.task_info, orient='index').reset_index()
         task_info_df.columns = ['task_info', 'value']
 
-        sol_df.to_csv(data_dir + 'sol.csv', index=False)
-        policy_df.to_csv(data_dir + 'policy.csv', index=False)
-        task_info_df.to_csv(data_dir + 'task_info.csv', index=False)
+        sol_df.to_csv(data_dir + str(self.task_id) + '_sol.csv', index=False)
+        policy_df.to_csv(data_dir + str(self.task_id) + '_policy.csv', index=False)
+        task_info_df.to_csv(data_dir + str(self.task_id) + '_task_info.csv', index=False)

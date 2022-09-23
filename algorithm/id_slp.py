@@ -21,7 +21,7 @@ class IterativeDecompositionSLP(object):
         self.sol = {'S': {}, 'SI': {}, 'CT': {}}
 
     @timer
-    def get_policy(self, solver='GRB', stability_type='cv', stability_threshold=0.0):
+    def get_policy(self, solver='GRB', stability_threshold=0.0):
         start_slp_model = SingleSLP(
             gsm_instance=self.gsm_instance,
             status='TO_RUN_SLP',
@@ -34,7 +34,7 @@ class IterativeDecompositionSLP(object):
 
         while len(self.to_run_slp_pool) > 0:
             single_slp_model = self.to_run_slp_pool.pop(0)
-            single_slp_model.run_slp(solver, stability_type, stability_threshold)
+            single_slp_model.run_slp(solver, stability_threshold)
             self.solved_slp_pool.append(single_slp_model)
             self.sol['S'].update(single_slp_model.sol['S'])
             self.sol['SI'].update(single_slp_model.sol['SI'])
@@ -48,7 +48,7 @@ class IterativeDecompositionSLP(object):
 
         bs_dict = {node: self.gsm_instance.db_func[node](self.sol['CT'][node]) for node in self.gsm_instance.all_nodes}
         ss_dict = {node: self.gsm_instance.vb_func[node](self.sol['CT'][node]) for node in self.gsm_instance.all_nodes}
-        method = 'ID-SLP_' + solver + '_' + stability_type
+        method = 'ID-SLP_' + solver
         cost = cal_cost(self.gsm_instance.hc_dict, ss_dict, method=method)
 
         policy = Policy(self.all_nodes)
@@ -78,18 +78,14 @@ class SingleSLP(BaseSLP):
 
         self.sub_slp_pool = []
 
-    def run_slp(self, solver='GRB', stability_type='cv', stability_threshold=0.0):
-        if stability_type == 'kl' or 'cn':
-            self.init_beta_para()
+    def run_slp(self, solver='GRB', stability_threshold=0.0):
         for _ in range(self.local_sol_num):
             init_CT = {j: float(random.randint(1, 150)) for j in self.all_nodes}
             self.run_one_instance(init_CT, solver)
-            if (len(self.results) > 0) and (stability_type == 'kl' or 'cn'):
-                self.update_beta_para()
 
         self.slp_sol = self.output_results()
 
-        self.slp_nodes_info = self.get_nodes_info(stability_type, stability_threshold)
+        self.slp_nodes_info = self.get_nodes_info(stability_threshold)
         self.get_sub_pool()
 
     def get_sub_pool(self):

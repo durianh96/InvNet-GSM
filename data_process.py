@@ -94,63 +94,6 @@ def generate_gsm_instance(graph,
     return gsm_instance
 
 
-def load_real_data(chain_id=1,
-                   chain_dir='chains/',
-                   qty_lb=1,
-                   qty_ub=3,
-                   hc_lb=0,
-                   hc_ub=1):
-    # load graph data
-    filename = str(chain_id).zfill(2) + '.csv'
-    chain_df = pd.read_csv(chain_dir + filename, header=1)
-
-    edge_columns = ['/arcs/arc/@from', '/arcs/arc/@to']
-    lt_columns = ['/stages/stage/@stageName', '/stages/stage/@stageTime']
-    # hc_columns = ['/stages/stage/@stageName', '/stages/stage/@stageCost']
-    demand_columns = ['/stages/stage/@stageName', '/stages/stage/@avgDemand', '/stages/stage/@stDevDemand',
-                      '/stages/stage/@maxServiceTime']
-
-    origin_edge_list = chain_df[edge_columns].dropna().values.tolist()
-    topo_sort = find_topo_sort(origin_edge_list)
-    node_list = ['N' + str(index).zfill(3) for index in range(len(topo_sort))]
-    map_dict = dict(zip(topo_sort, node_list))
-    edge_list = [(map_dict[u], map_dict[v]) for [u, v] in origin_edge_list]
-    graph = DiGraph(all_nodes=set(node_list), edge_list=edge_list)
-
-    # random quantity
-    qty_dict = {}
-    for u, v in graph.edge_list:
-        qty_dict[(u, v)] = np.random.uniform(qty_lb, qty_ub)
-
-    # leadtime 
-    lt_dict = {map_dict[v]: round(lt) for v, lt in chain_df[lt_columns].dropna().values.tolist()}
-
-    # holding cost
-    # hc_dict = {map_dict[v]: hc for v, hc in chain_df[hc_columns].dropna().values.tolist()}
-    topo_sort = cal_cum_lt(graph.edge_list, lt_dict)
-    preds_of_node = find_preds_of_node(graph.edge_list)
-    hc_dict = {}
-    for node in topo_sort:
-        if len(preds_of_node[node]) > 0:
-            hc_dict[node] = sum([hc_dict[pred] * qty_dict[pred, node] for pred in preds_of_node[node]]) \
-                            + np.random.uniform(hc_lb, hc_ub)
-        else:
-            hc_dict[node] = np.random.uniform(hc_lb, hc_ub)
-
-    # random demand parameters
-    demand_info = chain_df[demand_columns].dropna().values.tolist()
-
-    mu_dict = {map_dict[v]: mu for v, mu, _, _ in demand_info}
-
-    sigma_dict = {map_dict[v]: sigma for v, _, sigma, _ in demand_info}
-
-    sla_dict = {map_dict[v]: sla for v, _, _, sla in demand_info}
-
-    gsm_instance = GSMInstance(all_nodes=graph.all_nodes, edge_list=graph.edge_list, lt_dict=lt_dict, qty_dict=qty_dict,
-                               hc_dict=hc_dict, sla_dict=sla_dict, mu_dict=mu_dict, sigma_dict=sigma_dict)
-    return gsm_instance
-
-
 def write_instance_to_pickle(gsm_instance, data_dir):
     with open(data_dir + 'gsm_instance.pkl', 'wb') as f:
         pickle.dump(gsm_instance, f)
