@@ -1,0 +1,411 @@
+import gurobipy as gp
+from gurobipy import GRB
+import coptpy as cp
+from coptpy import COPT
+import pyomo.environ as pyo
+import pyomo.opt as pyopt
+import random
+import copy
+from utils.copt_pyomo import *
+from utils.gsm_utils import *
+from utils.utils import *
+
+
+class BaseSLP:
+    def __init__(self, gsm_instance, termination_parm=1e-4, opt_gap=0.01, max_iter_num=300, input_s_ub_dict=None,
+                 input_si_lb_dict=None):
+        self.gsm_instance = gsm_instance
+        self.graph = gsm_instance.graph
+        self.all_nodes = gsm_instance.all_nodes
+        self.demand_nodes = self.graph.demand_nodes
+        self.edge_list = self.graph.edge_list
+        self.lt_dict = gsm_instance.lt_dict
+        self.cum_lt_dict = gsm_instance.cum_lt_dict
+        self.hc_dict = gsm_instance.hc_dict
+        self.sla_dict = gsm_instance.sla_dict
+
+        self.vb_func = gsm_instance.vb_func
+        self.db_func = gsm_instance.db_func
+        self.grad_vb_func = gsm_instance.grad_vb_func
+
+        self.termination_parm = termination_parm
+        self.opt_gap = opt_gap
+        self.max_iter_num = max_iter_num
+
+        if input_s_ub_dict is None:
+            self.s_ub_dict = {}
+        else:
+            self.s_ub_dict = input_s_ub_dict
+        if input_si_lb_dict is None:
+            self.si_lb_dict = {}
+        else:
+            self.si_lb_dict = input_si_lb_dict
+
+        self.results = []
+        self.best_sol = None
+
+    def get_one_instance_policy(self, solver='GRB'):
+        init_CT = {j: float(random.randint(1, 150)) for j in self.all_nodes}
+        sol = self.run_one_instance(init_CT, solver)
+        return sol
+
+    def cal_para(self, CT):
+        # CT = {node: float(ct) for node, ct in CT.items()}
+        # print(self.grad_vb_func)
+        A = {node: self.hc_dict[node] * self.grad_vb_func[node](max(ctk, EPS)) for node, ctk in CT.items()}
+        B = {node: self.hc_dict[node] * self.vb_func[node](max(ctk, EPS)) - A[node] * ctk for node, ctk in CT.items()}
+        obj_para = {'A': A, 'B': B}
+        return obj_para
+
+    def run_one_instance(self, init_CT, solver):
+        CT_step = copy.copy(init_CT)
+        obj_value = [0]
+        for i in range(self.max_iter_num):
+            step_obj_para = self.cal_para(CT_step)
+            if solver == 'GRB':
+                step_sol = self.slp_step_grb(step_obj_para)
+            elif solver == 'COPT':
+                step_sol = self.slp_step_copt(step_obj_para)
+            elif solver == 'PYO_COPT':
+                step_sol = self.slp_step_pyomo(step_obj_para, pyo_solver='COPT')
+            elif solver == 'PYO_GRB':
+                step_sol = self.slp_step_pyomo(step_obj_para, pyo_solver='GRB')
+            elif solver == 'PYO_CBC':
+                step_sol = self.slp_step_pyomo(step_obj_para, pyo_solver='CBC')
+            elif solver == 'PYO_SCIP':
+                step_sol = self.slp_step_pyomo(step_obj_para, pyo_solver='SCIP')
+            elif solver == 'PYO_GLPK':
+                step_sol = self.slp_step_pyomo(step_obj_para, pyo_solver='GLPK')
+            else:
+                raise AttributeError('undefined solver')
+            obj_value.append(step_sol['obj_value'])
+            CT_step = step_sol['CT']
+            if (i > 0) and (abs(obj_value[i - 1] - obj_value[i]) <= self.termination_parm):
+                error_sol = check_solution_feasibility(self.gsm_instance, step_sol)
+                if len(error_sol) > 0:
+                    logger.error(error_sol)
+                    return
+                else:
+                    self.results.append(step_sol)
+                    return step_sol
+
+    def slp_step_grb(self, obj_para):
+        m = gp.Model('slp_step')
+        # adding variables
+        S = m.addVars(self.all_nodes, vtype=GRB.CONTINUOUS, lb=0)
+        SI = m.addVars(self.all_nodes, vtype=GRB.CONTINUOUS, lb=0)
+        CT = m.addVars(self.all_nodes, vtype=GRB.CONTINUOUS, lb=0)
+
+        # covering time
+        m.addConstrs((CT[j] == SI[j] + self.lt_dict[j] - S[j] for j in self.all_nodes))
+        # sla
+        m.addConstrs((S[j] <= int(self.sla_dict[j]) for j in self.demand_nodes if j in self.sla_dict.keys()))
+
+        # si >= s
+        m.addConstrs((SI[succ] - S[pred] >= 0 for (pred, succ) in self.edge_list))
+
+        # s upper bound
+        if len(self.s_ub_dict) > 0:
+            m.addConstrs((S[j] <= ub for j, ub in self.s_ub_dict.items()))
+
+        # si lower bound
+        if len(self.si_lb_dict) > 0:
+            m.addConstrs((SI[j] >= lb for j, lb in self.si_lb_dict.items()))
+
+        m.setObjective(gp.quicksum(obj_para['A'][node] * CT[node] + obj_para['B'][node]
+                                   for node in self.all_nodes), GRB.MINIMIZE)
+        m.Params.MIPGap = self.opt_gap
+        m.Params.LogToConsole = 0
+        m.optimize()
+
+        if m.status == GRB.OPTIMAL:
+            step_sol = {'S': {node: float(S[node].x) for node in self.all_nodes},
+                        'SI': {node: float(SI[node].x) for node in self.all_nodes},
+                        'CT': {node: float(CT[node].x) for node in self.all_nodes}}
+            step_sol['obj_value'] = sum(
+                [self.hc_dict[node] * self.vb_func[node](step_sol['CT'][node]) for node in self.all_nodes])
+            return step_sol
+        elif m.status == GRB.INFEASIBLE:
+            raise Exception('Infeasible model')
+        elif m.status == GRB.UNBOUNDED:
+            raise Exception('Unbounded model')
+        elif m.status == GRB.TIME_LIMIT:
+            raise Exception('Time out')
+        else:
+            logger.error('Error status is ', m.status)
+            raise Exception('Solution has not been found')
+
+    def slp_step_copt(self, obj_para):
+        env = cp.Envr()
+        m = env.createModel('slp_step')
+        # adding variables
+        S = m.addVars(self.all_nodes, vtype=COPT.CONTINUOUS, lb=0)
+        SI = m.addVars(self.all_nodes, vtype=COPT.CONTINUOUS, lb=0)
+        CT = m.addVars(self.all_nodes, vtype=COPT.CONTINUOUS, lb=0)
+
+        # covering time
+        m.addConstrs((CT[j] == SI[j] + self.lt_dict[j] - S[j] for j in self.all_nodes))
+        # sla
+        m.addConstrs((S[j] <= int(self.sla_dict[j]) for j in self.demand_nodes if j in self.sla_dict.keys()))
+
+        # si >= s
+        m.addConstrs((SI[succ] - S[pred] >= 0 for (pred, succ) in self.edge_list))
+
+        # s upper bound
+        if len(self.s_ub_dict) > 0:
+            m.addConstrs((S[j] <= ub for j, ub in self.s_ub_dict.items()))
+
+        # si lower bound
+        if len(self.si_lb_dict) > 0:
+            m.addConstrs((SI[j] >= lb for j, lb in self.si_lb_dict.items()))
+
+        m.setObjective(cp.quicksum(obj_para['A'][node] * CT[node] + obj_para['B'][node]
+                                   for node in self.all_nodes), COPT.MINIMIZE)
+        m.setParam(COPT.Param.RelGap, self.opt_gap)
+        m.setParam(COPT.Param.Logging, False)
+        m.setParam(COPT.Param.LogToConsole, False)
+        m.solve()
+
+        if m.status == COPT.OPTIMAL:
+            step_sol = {'S': {node: float(S[node].x) for node in self.all_nodes},
+                        'SI': {node: float(SI[node].x) for node in self.all_nodes},
+                        'CT': {node: float(CT[node].x) for node in self.all_nodes}}
+            step_sol['obj_value'] = sum(
+                [self.hc_dict[node] * self.vb_func[node](step_sol['CT'][node]) for node in self.all_nodes])
+            return step_sol
+        elif m.status == COPT.INFEASIBLE:
+            raise Exception('Infeasible model')
+        elif m.status == COPT.UNBOUNDED:
+            raise Exception('Unbounded model')
+        elif m.status == COPT.TIMEOUT:
+            raise Exception('Time out')
+        else:
+            logger.error('Error status is ', m.status)
+            raise Exception('Solution has not been found')
+
+    def slp_step_pyomo(self, obj_para, pyo_solver='GRB'):
+        m = pyo.ConcreteModel('slp_step')
+        # adding variables
+        m.S = pyo.Var(self.all_nodes, domain=pyo.NonNegativeReals)
+        m.SI = pyo.Var(self.all_nodes, domain=pyo.NonNegativeReals)
+        m.CT = pyo.Var(self.all_nodes, domain=pyo.NonNegativeReals)
+
+        # constraints
+        m.constrs = pyo.ConstraintList()
+        for j in self.all_nodes:
+            m.constrs.add(m.CT[j] == m.SI[j] + self.lt_dict[j] - m.S[j])
+
+        # sla
+        for j in self.demand_nodes:
+            m.constrs.add(m.S[j] <= int(self.sla_dict[j]))
+
+        # si >= s
+        for pred, succ in self.edge_list:
+            m.constrs.add(m.SI[succ] - m.S[pred] >= 0)
+
+        # s upper bound
+        if len(self.s_ub_dict) > 0:
+            for j, ub in self.s_ub_dict.items():
+                m.constrs.add(m.S[j] <= ub)
+        # si lower bound
+        if len(self.si_lb_dict) > 0:
+            for j, lb in self.si_lb_dict.items():
+                m.constrs.add(m.SI[j] >= lb)
+
+        m.Cost = pyo.Objective(
+            expr=sum([obj_para['A'][j] * m.CT[j] + obj_para['B'][j] for j in self.all_nodes]),
+            sense=pyo.minimize
+        )
+        if pyo_solver == 'COPT':
+            solver = pyopt.SolverFactory('copt_direct')
+            solver.options['RelGap'] = self.opt_gap
+        elif pyo_solver == 'GRB':
+            solver = pyopt.SolverFactory('gurobi_direct')
+            solver.options['MIPGap'] = self.opt_gap
+        elif pyo_solver == 'CBC':
+            solver = pyopt.SolverFactory('cbc')
+            solver.options['ratio'] = self.opt_gap
+        elif pyo_solver == 'GLPK':
+            solver = pyopt.SolverFactory('glpk')
+            solver.options['TolObj'] = self.opt_gap
+        elif pyo_solver == 'SCIP':
+            solver = pyopt.SolverFactory('scip')
+            solver.options['limits/gap'] = self.opt_gap
+            solver.options['limits/time'] = 1e+20
+        else:
+            raise AttributeError
+
+        solver.solve(m, tee=False)
+
+        step_sol = {'S': {node: float(m.S[node].value) for node in self.all_nodes},
+                    'SI': {node: float(m.SI[node].value) for node in self.all_nodes},
+                    'CT': {node: float(m.CT[node].value) for node in self.all_nodes}}
+        step_sol['obj_value'] = sum(
+            [self.hc_dict[node] * self.vb_func[node](step_sol['CT'][node]) for node in self.all_nodes])
+        return step_sol
+
+    def output_results(self, input_results=None):
+        if input_results:
+            self.results = input_results
+        cost_list = [sol['obj_value'] for sol in self.results]
+        best_i = np.argmin(cost_list)
+        best_sol = self.results[best_i]
+        error_sol = check_solution_feasibility(self.gsm_instance, best_sol)
+        if len(error_sol) > 0:
+            logger.error(error_sol)
+        return best_sol
+
+    def get_nodes_info(self, stability_type, stability_threshold):
+        node_S_results = {node: [r['S'][node] for r in self.results] for node in self.all_nodes}
+        node_S_mean = {node: np.mean(node_S_results[node]) for node in self.all_nodes}
+
+        node_SI_results = {node: [r['SI'][node] for r in self.results] for node in self.all_nodes}
+        node_SI_mean = {node: np.mean(node_SI_results[node]) for node in self.all_nodes}
+
+        node_CT_results = {node: [r['CT'][node] for r in self.results] for node in self.all_nodes}
+        node_CT_mean = {node: np.mean(node_CT_results[node]) for node in self.all_nodes}
+
+        if stability_type == 'kl':
+            S_stat_dict = self.get_last_kl(var_type='S')
+            SI_stat_dict = self.get_last_kl(var_type='SI')
+            CT_stat_dict = self.get_last_kl(var_type='CT')
+        elif stability_type == 'cn':
+            S_stat_dict = self.get_last_cn(var_type='S')
+            SI_stat_dict = self.get_last_cn(var_type='SI')
+            CT_stat_dict = self.get_last_cn(var_type='CT')
+        else:
+            node_S_std = {node: np.std(node_S_results[node]) for node in self.all_nodes}
+            S_stat_dict = {node: node_S_std[node] / (node_S_mean[node] if node_S_mean[node] > 0 else 1)
+                           for node in self.all_nodes}
+            node_SI_std = {node: np.std(node_SI_results[node]) for node in self.all_nodes}
+            SI_stat_dict = {node: node_SI_std[node] / (node_SI_mean[node] if node_SI_mean[node] > 0 else 1)
+                            for node in self.all_nodes}
+            node_CT_std = {node: np.std(node_CT_results[node]) for node in self.all_nodes}
+            CT_stat_dict = {node: node_CT_std[node] / (node_CT_mean[node] if node_CT_mean[node] > 0 else 1)
+                            for node in self.all_nodes}
+
+        stationary_S_node = [node for node, v in S_stat_dict.items() if v <= stability_threshold]
+        stationary_SI_node = [node for node, v in SI_stat_dict.items() if v <= stability_threshold]
+        stationary_CT_node = [node for node, v in CT_stat_dict.items() if v <= stability_threshold]
+
+        fix_S = {}
+        fix_SI = {}
+        fix_CT = {}
+        for node in self.all_nodes:
+            if node in stationary_S_node:
+                fix_S[node] = float(round(node_S_mean[node], 2))
+                if node in stationary_SI_node:
+                    fix_SI[node] = float(round(node_SI_mean[node], 2))
+                    fix_CT[node] = fix_SI[node] + self.lt_dict[node] - fix_S[node]
+                elif node in stationary_CT_node:
+                    fix_CT[node] = float(round(node_CT_mean[node], 2))
+                    fix_SI[node] = fix_CT[node] + fix_S[node] - self.lt_dict[node]
+            elif node in stationary_SI_node:
+                fix_SI[node] = float(round(node_SI_mean[node], 2))
+                if node in stationary_CT_node:
+                    fix_CT[node] = float(round(node_CT_mean[node], 2))
+                    fix_S[node] = fix_SI[node] + self.lt_dict[node] - fix_CT[node]
+
+        fix_S_nodes = set(fix_S.keys())
+        fix_SI_nodes = set(fix_SI.keys())
+        fix_CT_nodes = set(fix_CT.keys())
+
+        completely_fix_nodes = fix_S_nodes & fix_SI_nodes & fix_CT_nodes
+
+        solely_fix_S_nodes = fix_S_nodes - completely_fix_nodes
+        free_S_nodes = set(self.all_nodes) - fix_S_nodes
+        solely_fix_SI_nodes = fix_SI_nodes - completely_fix_nodes
+        free_SI_nodes = set(self.all_nodes) - fix_SI_nodes
+        solely_fix_CT_nodes = fix_CT_nodes - completely_fix_nodes
+        free_CT_nodes = set(self.all_nodes) - fix_CT_nodes
+        completely_free_nodes = set(self.all_nodes) - fix_S_nodes - fix_SI_nodes - fix_CT_nodes
+
+        completely_fix_S = {j: fix_S[j] for j in completely_fix_nodes}
+        completely_fix_SI = {j: fix_SI[j] for j in completely_fix_nodes}
+        completely_fix_CT = {j: fix_CT[j] for j in completely_fix_nodes}
+
+        nodes_info = {'fix_S_nodes': fix_S_nodes, 'fix_SI_nodes': fix_SI_nodes, 'fix_CT_nodes': fix_CT_nodes,
+                      'completely_fix_nodes': completely_fix_nodes, 'completely_free_nodes': completely_free_nodes,
+                      'solely_fix_S_nodes': solely_fix_S_nodes, 'free_S_nodes': free_S_nodes,
+                      'solely_fix_SI_nodes': solely_fix_SI_nodes, 'free_SI_nodes': free_SI_nodes,
+                      'solely_fix_CT_nodes': solely_fix_CT_nodes, 'free_CT_nodes': free_CT_nodes,
+                      'fix_S': fix_S, 'fix_SI': fix_SI, 'fix_CT': fix_CT,
+                      'completely_fix_S': completely_fix_S, 'completely_fix_SI': completely_fix_SI,
+                      'completely_fix_CT': completely_fix_CT}
+        return nodes_info
+
+    def init_beta_para(self):
+        self.S_beta_para = {'alpha': {node: [1] for node in self.all_nodes},
+                            'beta': {node: [1] for node in self.all_nodes}}
+        self.SI_beta_para = {'alpha': {node: [1] for node in self.all_nodes},
+                             'beta': {node: [1] for node in self.all_nodes}}
+        self.CT_beta_para = {'alpha': {node: [1] for node in self.all_nodes},
+                             'beta': {node: [1] for node in self.all_nodes}}
+        self.S_ub = {node: min(self.sla_dict.get(node, 9999), self.cum_lt_dict[node]) for node in self.all_nodes}
+        self.SI_ub = {node: self.cum_lt_dict[node] - self.lt_dict[node] for node in self.all_nodes}
+        self.CT_ub = {node: self.cum_lt_dict[node] for node in self.all_nodes}
+
+    def update_beta_para(self):
+        new_S = self.results[-1]['S']
+        new_SI = self.results[-1]['SI']
+        new_CT = self.results[-1]['CT']
+        for node in self.all_nodes:
+            # update S para
+            if self.S_ub[node] > 0:
+                new_S_alpha = self.S_beta_para['alpha'][node][-1] + (new_S[node] / self.S_ub[node])
+                new_S_beta = self.S_beta_para['beta'][node][-1] + 1 - (new_S[node] / self.S_ub[node])
+                self.S_beta_para['alpha'][node].append(new_S_alpha)
+                self.S_beta_para['beta'][node].append(new_S_beta)
+            else:
+                self.S_beta_para['alpha'][node].append(self.S_beta_para['alpha'][node][-1])
+                self.S_beta_para['beta'][node].append(self.S_beta_para['beta'][node][-1])
+            # update SI para
+            if self.SI_ub[node] > 0:
+                new_SI_alpha = self.SI_beta_para['alpha'][node][-1] + (new_SI[node] / self.SI_ub[node])
+                new_SI_beta = self.SI_beta_para['beta'][node][-1] + 1 - (new_SI[node] / self.SI_ub[node])
+                self.SI_beta_para['alpha'][node].append(new_SI_alpha)
+                self.SI_beta_para['beta'][node].append(new_SI_beta)
+            else:
+                self.SI_beta_para['alpha'][node].append(self.SI_beta_para['alpha'][node][-1])
+                self.SI_beta_para['beta'][node].append(self.SI_beta_para['beta'][node][-1])
+            # update CT para
+            if self.CT_ub[node] > 0:
+                new_CT_alpha = self.CT_beta_para['alpha'][node][-1] + (new_CT[node] / self.CT_ub[node])
+                new_CT_beta = self.CT_beta_para['beta'][node][-1] + 1 - (new_CT[node] / self.CT_ub[node])
+                self.CT_beta_para['alpha'][node].append(new_CT_alpha)
+                self.CT_beta_para['beta'][node].append(new_CT_beta)
+            else:
+                self.CT_beta_para['alpha'][node].append(self.CT_beta_para['alpha'][node][-1])
+                self.CT_beta_para['beta'][node].append(self.CT_beta_para['beta'][node][-1])
+
+    def get_last_cn(self, var_type):
+        if var_type == 'S':
+            cn_dict = {node: chernoff_distance(self.S_beta_para['alpha'][node][-2], self.S_beta_para['beta'][node][-2],
+                                               self.S_beta_para['alpha'][node][-1], self.S_beta_para['beta'][node][-1])
+                       for node in self.all_nodes}
+        elif var_type == 'SI':
+            cn_dict = {
+                node: chernoff_distance(self.SI_beta_para['alpha'][node][-2], self.SI_beta_para['beta'][node][-2],
+                                        self.SI_beta_para['alpha'][node][-1], self.SI_beta_para['beta'][node][-1])
+                for node in self.all_nodes}
+        else:
+            cn_dict = {
+                node: chernoff_distance(self.CT_beta_para['alpha'][node][-2], self.CT_beta_para['beta'][node][-2],
+                                        self.CT_beta_para['alpha'][node][-1], self.CT_beta_para['beta'][node][-1])
+                for node in self.all_nodes}
+        return cn_dict
+
+    def get_last_kl(self, var_type):
+        if var_type == 'S':
+            kl_dict = {node: kl_divergence(self.S_beta_para['alpha'][node][-2], self.S_beta_para['beta'][node][-2],
+                                           self.S_beta_para['alpha'][node][-1], self.S_beta_para['beta'][node][-1])
+                       for node in self.all_nodes}
+        elif var_type == 'SI':
+            kl_dict = {node: kl_divergence(self.SI_beta_para['alpha'][node][-2], self.SI_beta_para['beta'][node][-2],
+                                           self.SI_beta_para['alpha'][node][-1], self.SI_beta_para['beta'][node][-1])
+                       for node in self.all_nodes}
+        else:
+            kl_dict = {node: kl_divergence(self.CT_beta_para['alpha'][node][-2], self.CT_beta_para['beta'][node][-2],
+                                           self.CT_beta_para['alpha'][node][-1], self.CT_beta_para['beta'][node][-1])
+                       for node in self.all_nodes}
+        return kl_dict
