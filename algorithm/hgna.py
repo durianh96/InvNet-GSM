@@ -188,7 +188,13 @@ class HeuristicGeneralNetworksAlgorithm:
     def get_policy(self):
         if self.graph.is_tree():
             dp_algo = DynamicProgramming(self.gsm_instance)
-            sol, bs_dict, ss_dict, ss_cost = dp_algo.get_policy()
+            dp_policy = dp_algo.get_policy()
+            sol = {'S':dp_policy.sol_S,
+                   'SI':dp_policy.sol_SI,
+                   'CT':dp_policy.sol_CT}
+            bs_dict = dp_policy.base_stock
+            ss_dict = dp_policy.safety_stock
+            ss_cost = dp_policy.ss_cost
         else:
             self.select_sptree()
             default_violate_dict = {'lb': {}, 'ub': {}}
