@@ -1,0 +1,15 @@
+task_info,value
+task_id,TASK_01
+instance_id,INSTANCE_01
+graph_type,general
+nodes_num,1000
+edges_num,5000
+tau,0.95
+pooling_factor,2
+approach_name,Simple-SLP
+task_time,0:00:14.687767
+ss_cost,423674898163.91675
+termination_parm,0.0001
+opt_gap,0.01
+max_iter_num,300
+local_sol_num,20
