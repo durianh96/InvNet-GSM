@@ -68,7 +68,8 @@ class HeuristicGeneralNetworksAlgorithm:
         self.rank_edge()
         # add cost on edge
         mst_edge_list = find_mst_prim(edge_list=self.edge_list, edge_weight_dict=self.edge_cost_dict)
-        self.mst_gsm_instance = GSMInstance(edge_list=mst_edge_list, all_nodes=self.all_nodes, lt_dict=self.lt_dict,
+        self.mst_gsm_instance = GSMInstance(instance_id='sub_' + self.gsm_instance.instance_id,
+                                            edge_list=mst_edge_list, all_nodes=self.all_nodes, lt_dict=self.lt_dict,
                                             qty_dict=self.qty_dict, hc_dict=self.hc_dict, sla_dict=self.sla_dict,
                                             mu_dict=self.mu_dict, sigma_dict=self.sigma_dict)
         self.mst_gsm_instance.db_func = self.gsm_instance.db_func
@@ -92,9 +93,11 @@ class HeuristicGeneralNetworksAlgorithm:
         input_si_lb_dict = violate_dict['lb']
         dp_algo = DynamicProgramming(self.mst_gsm_instance, input_s_ub_dict, input_si_lb_dict)
         dp_index_dict = {'S_index': dp_algo.S_index, 'SI_index': dp_algo.SI_index}
-        dp_sol, _, _, _ = dp_algo.get_policy()
-        dp_ss_dict = {node: self.vb_func[node](dp_sol['CT'][node]) for node in self.all_nodes}
-        dp_ss_cost = cal_cost(self.hc_dict, dp_ss_dict, 'DP(Revised)')
+        dp_policy = dp_algo.get_policy()
+        dp_sol = {'S':dp_policy.sol_S,
+                  'SI':dp_policy.sol_SI,
+                  'CT':dp_policy.sol_CT}
+        dp_ss_cost = dp_policy.ss_cost
         return dp_index_dict, dp_sol, dp_ss_cost
 
     def get_feasible_sol(self, dp_sol, index_dict):
@@ -192,7 +195,7 @@ class HeuristicGeneralNetworksAlgorithm:
             sol, _ = self.call_routine(default_violate_dict)
             bs_dict = {node: self.db_func[node](sol['CT'][node]) for node in self.all_nodes}
             ss_dict = {node: self.vb_func[node](sol['CT'][node]) for node in self.all_nodes}
-            ss_cost = cal_cost(self.hc_dict, ss_dict, 'GNA')
+            ss_cost = cal_cost(self.hc_dict, ss_dict, 'HGNA')
 
         policy = Policy(self.all_nodes)
         policy.update_sol(sol)
