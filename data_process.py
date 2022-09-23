@@ -147,12 +147,13 @@ def load_instance_from_csv(data_dir):
     sigma_dict = {node: sigma for node, sigma in node_df[['node_id', 'sigma']].dropna().values.tolist()}
 
     instance_info = dict(zip(instance_info_df['instance_info'], instance_info_df['value']))
-
+    
     gsm_instance = GSMInstance(instance_id=instance_info['instance_id'], all_nodes=all_nodes, edge_list=edge_list,
                                lt_dict=lt_dict, qty_dict=qty_dict,
                                hc_dict=hc_dict, sla_dict=sla_dict,
                                mu_dict=mu_dict, sigma_dict=sigma_dict,
-                               tau=instance_info['tau'], pooling_factor=instance_info['pooling_factor'])
+                               tau=float(instance_info['tau']),
+                               pooling_factor=int(instance_info['pooling_factor']))
     return gsm_instance
 
 
