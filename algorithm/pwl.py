@@ -8,10 +8,11 @@ from utils.copt_pyomo import *
 from utils.gsm_utils import *
 from utils.utils import *
 from domain.policy import Policy
+from algorithm.default_paras import *
 
 
 class PieceWiseLinear:
-    def __init__(self, gsm_instance, time_unit=1, opt_gap=0.01, time_limit=14400):
+    def __init__(self, gsm_instance, time_unit=TIME_UNIT, opt_gap=OPT_GAP, time_limit=TIME_LIMIT):
         self.gsm_instance = gsm_instance
         self.graph = gsm_instance.graph
         self.all_nodes = gsm_instance.all_nodes
@@ -35,7 +36,7 @@ class PieceWiseLinear:
         self.br_dict = None
 
     @timer
-    def get_policy(self, solver='GRB'):
+    def get_policy(self, solver=SOLVER):
         self.cal_ar_br()
         if solver == 'GRB':
             sol = self.pwl_grb()
@@ -47,10 +48,6 @@ class PieceWiseLinear:
             sol = self.pwl_pyomo(pyo_solver='GRB')
         elif solver == 'PYO_CBC':
             sol = self.pwl_pyomo(pyo_solver='CBC')
-        elif solver == 'PYO_SCIP':
-            sol = self.pwl_pyomo(pyo_solver='SCIP')
-        elif solver == 'PYO_GLPK':
-            sol = self.pwl_pyomo(pyo_solver='GLPK')
         else:
             raise AttributeError
 
@@ -107,15 +104,15 @@ class PieceWiseLinear:
 
         m = gp.Model('pwl')
 
-        # 服务响应时间
+        # service time
         S = m.addVars(self.all_nodes, vtype=GRB.CONTINUOUS, lb=0, name='S')
-        # 被服务时间
+        # inbound service time
         SI = m.addVars(self.all_nodes, vtype=GRB.CONTINUOUS, lb=0, name='SI')
-        # 覆盖时间
+        # covering time
         CT = m.addVars(self.all_nodes, vtype=GRB.CONTINUOUS, lb=0, name='CT')
-        # 用来控制只选择一段的0-1变量
+        # 0-1
         U = m.addVars(jt_list, vtype=GRB.BINARY, name='U')
-        # 用于近似覆盖时间的变量
+        # approx
         Z = m.addVars(jt_list, vtype=GRB.CONTINUOUS, lb=0, name='Z')
 
         # adding objective
@@ -165,15 +162,15 @@ class PieceWiseLinear:
         env = cp.Envr()
         m = env.createModel('pwl')
 
-        # 服务响应时间
+        # service time
         S = m.addVars(self.all_nodes, vtype=COPT.CONTINUOUS, lb=0, nameprefix='S')
-        # 被服务时间
+        # inbound service time
         SI = m.addVars(self.all_nodes, vtype=COPT.CONTINUOUS, lb=0, nameprefix='SI')
-        # 覆盖时间
+        # covering time
         CT = m.addVars(self.all_nodes, vtype=COPT.CONTINUOUS, lb=0, nameprefix='CT')
-        # 用来控制只选择一段的0-1变量
+        # 0-1
         U = m.addVars(jt_list, vtype=COPT.BINARY, nameprefix='U')
-        # 用于近似覆盖时间的变量
+        # approx
         Z = m.addVars(jt_list, vtype=COPT.CONTINUOUS, lb=0, nameprefix='Z')
 
         # adding objective
@@ -224,15 +221,15 @@ class PieceWiseLinear:
 
         m = pyo.ConcreteModel()
 
-        # 服务响应时间
+        # service time
         m.S = pyo.Var(self.all_nodes, domain=pyo.NonNegativeReals)
-        # 被服务时间
+        # inbound service time
         m.SI = pyo.Var(self.all_nodes, domain=pyo.NonNegativeReals)
-        # 覆盖时间
+        # covering time
         m.CT = pyo.Var(self.all_nodes, domain=pyo.NonNegativeReals)
-        # 用来控制只选择一段的0-1变量
+        # 0-1
         m.U = pyo.Var(jt_list, domain=pyo.Binary)
-        # 用于近似覆盖时间的变量
+        # approx
         m.Z = pyo.Var(jt_list, domain=pyo.NonNegativeReals)
 
         # adding objective
@@ -271,14 +268,6 @@ class PieceWiseLinear:
             solver = pyopt.SolverFactory('cbc')
             solver.options['ratio'] = self.opt_gap
             solver.options['sec'] = self.time_limit
-        elif pyo_solver == 'GLPK':
-            solver = pyopt.SolverFactory('glpk')
-            solver.options['TolObj'] = self.opt_gap
-            solver.options['SolTimeLimit'] = self.time_limit
-        elif pyo_solver == 'SCIP':
-            solver = pyopt.SolverFactory('scip')
-            solver.options['limits/gap'] = self.opt_gap
-            solver.options['limits/time'] = self.time_limit
         else:
             raise AttributeError
 

@@ -4,10 +4,11 @@ from utils.utils import *
 from utils.gsm_utils import *
 from data_process import *
 from domain.policy import Policy
+from algorithm.default_paras import *
 
 
 class HeuristicGeneralNetworksAlgorithm:
-    def __init__(self, gsm_instance, time_unit=1, max_iter_num=300):
+    def __init__(self, gsm_instance, time_unit=TIME_UNIT, max_iter_num=MAX_ITER_NUM):
         self.gsm_instance = gsm_instance
         self.graph = gsm_instance.graph
 
@@ -94,9 +95,9 @@ class HeuristicGeneralNetworksAlgorithm:
         dp_algo = DynamicProgramming(self.mst_gsm_instance, input_s_ub_dict, input_si_lb_dict)
         dp_index_dict = {'S_index': dp_algo.S_index, 'SI_index': dp_algo.SI_index}
         dp_policy = dp_algo.get_policy()
-        dp_sol = {'S':dp_policy.sol_S,
-                  'SI':dp_policy.sol_SI,
-                  'CT':dp_policy.sol_CT}
+        dp_sol = {'S': dp_policy.sol_S,
+                  'SI': dp_policy.sol_SI,
+                  'CT': dp_policy.sol_CT}
         dp_ss_cost = dp_policy.ss_cost
         return dp_index_dict, dp_sol, dp_ss_cost
 
@@ -189,9 +190,9 @@ class HeuristicGeneralNetworksAlgorithm:
         if self.graph.is_tree():
             dp_algo = DynamicProgramming(self.gsm_instance)
             dp_policy = dp_algo.get_policy()
-            sol = {'S':dp_policy.sol_S,
-                   'SI':dp_policy.sol_SI,
-                   'CT':dp_policy.sol_CT}
+            sol = {'S': dp_policy.sol_S,
+                   'SI': dp_policy.sol_SI,
+                   'CT': dp_policy.sol_CT}
             bs_dict = dp_policy.base_stock
             ss_dict = dp_policy.safety_stock
             ss_cost = dp_policy.ss_cost

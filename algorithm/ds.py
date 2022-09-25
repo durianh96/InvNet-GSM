@@ -8,10 +8,11 @@ from utils.copt_pyomo import *
 from utils.gsm_utils import *
 from utils.utils import *
 from domain.policy import Policy
+from algorithm.default_paras import *
 
 
 class DynamicSloping:
-    def __init__(self, gsm_instance, termination_parm=1e-4, opt_gap=0.01, max_iter_num=300):
+    def __init__(self, gsm_instance, termination_parm=TERMINATION_PARM, opt_gap=OPT_GAP, max_iter_num=MAX_ITER_NUM):
         self.gsm_instance = gsm_instance
         self.graph = gsm_instance.graph
         self.all_nodes = gsm_instance.all_nodes
@@ -30,7 +31,7 @@ class DynamicSloping:
         self.max_iter_num = max_iter_num
 
     @timer
-    def get_policy(self, solver='GRB'):
+    def get_policy(self, solver=SOLVER):
         a_k = {j: 1 for j in self.all_nodes}
         obj_value = []
         for i in range(self.max_iter_num):
@@ -44,10 +45,6 @@ class DynamicSloping:
                 sol_k = self.dynamic_sloping_pyomo(a_k, pyo_solver='GRB')
             elif solver == 'PYO_CBC':
                 sol_k = self.dynamic_sloping_pyomo(a_k, pyo_solver='CBC')
-            elif solver == 'PYO_SCIP':
-                sol_k = self.dynamic_sloping_pyomo(a_k, pyo_solver='SCIP')
-            elif solver == 'PYO_GLPK':
-                sol_k = self.dynamic_sloping_pyomo(a_k, pyo_solver='GLPK')
             else:
                 raise AttributeError('undefined solver')
             CT_k = sol_k['CT']
@@ -193,13 +190,6 @@ class DynamicSloping:
         elif pyo_solver == 'CBC':
             solver = pyopt.SolverFactory('cbc')
             solver.options['ratio'] = self.opt_gap
-        elif pyo_solver == 'GLPK':
-            solver = pyopt.SolverFactory('glpk')
-            solver.options['TolObj'] = self.opt_gap
-        elif pyo_solver == 'SCIP':
-            solver = pyopt.SolverFactory('scip')
-            solver.options['limits/gap'] = self.opt_gap
-            solver.options['limits/time'] = 1e+20
         else:
             raise AttributeError
 

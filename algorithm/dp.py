@@ -2,10 +2,11 @@ from collections import defaultdict
 from utils.gsm_utils import *
 from utils.utils import *
 from domain.policy import Policy
+from algorithm.default_paras import *
 
 
 class DynamicProgramming:
-    def __init__(self, gsm_instance, input_s_ub_dict=None, input_si_lb_dict=None, time_unit=1):
+    def __init__(self, gsm_instance, input_s_ub_dict=None, input_si_lb_dict=None, time_unit=TIME_UNIT):
         self.gsm_instance = gsm_instance
         self.graph = gsm_instance.graph
         if not self.graph.is_tree():

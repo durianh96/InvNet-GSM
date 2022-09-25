@@ -9,11 +9,12 @@ import copy
 from utils.copt_pyomo import *
 from utils.gsm_utils import *
 from utils.utils import *
+from algorithm.default_paras import *
 
 
 class BaseSLP:
-    def __init__(self, gsm_instance, termination_parm=1e-4, opt_gap=0.01, max_iter_num=300, input_s_ub_dict=None,
-                 input_si_lb_dict=None):
+    def __init__(self, gsm_instance, termination_parm=TERMINATION_PARM, opt_gap=OPT_GAP, max_iter_num=MAX_ITER_NUM,
+                 input_s_ub_dict=None, input_si_lb_dict=None):
         self.gsm_instance = gsm_instance
         self.graph = gsm_instance.graph
         self.all_nodes = gsm_instance.all_nodes
@@ -44,7 +45,7 @@ class BaseSLP:
         self.results = []
         self.best_sol = None
 
-    def get_one_instance_policy(self, solver='GRB'):
+    def get_one_instance_policy(self, solver=SOLVER):
         init_CT = {j: float(random.randint(1, 150)) for j in self.all_nodes}
         sol = self.run_one_instance(init_CT, solver)
         return sol
@@ -70,10 +71,6 @@ class BaseSLP:
                 step_sol = self.slp_step_pyomo(step_obj_para, pyo_solver='GRB')
             elif solver == 'PYO_CBC':
                 step_sol = self.slp_step_pyomo(step_obj_para, pyo_solver='CBC')
-            elif solver == 'PYO_SCIP':
-                step_sol = self.slp_step_pyomo(step_obj_para, pyo_solver='SCIP')
-            elif solver == 'PYO_GLPK':
-                step_sol = self.slp_step_pyomo(step_obj_para, pyo_solver='GLPK')
             else:
                 raise AttributeError('undefined solver')
             obj_value.append(step_sol['obj_value'])
@@ -223,13 +220,6 @@ class BaseSLP:
         elif pyo_solver == 'CBC':
             solver = pyopt.SolverFactory('cbc')
             solver.options['ratio'] = self.opt_gap
-        elif pyo_solver == 'GLPK':
-            solver = pyopt.SolverFactory('glpk')
-            solver.options['TolObj'] = self.opt_gap
-        elif pyo_solver == 'SCIP':
-            solver = pyopt.SolverFactory('scip')
-            solver.options['limits/gap'] = self.opt_gap
-            solver.options['limits/time'] = 1e+20
         else:
             raise AttributeError
 

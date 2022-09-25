@@ -1,15 +1,17 @@
 import multiprocess as mp
 from domain.policy import Policy
 from algorithm.base_slp import *
+from algorithm.default_paras import *
 
 
 class SimpleSLP(BaseSLP):
-    def __init__(self, gsm_instance, termination_parm=1e-4, opt_gap=0.01, max_iter_num=300, local_sol_num=20):
+    def __init__(self, gsm_instance, termination_parm=TERMINATION_PARM, opt_gap=OPT_GAP,
+                 max_iter_num=MAX_ITER_NUM, local_sol_num=LOCAL_SOL_NUM):
         super().__init__(gsm_instance, termination_parm, opt_gap, max_iter_num)
         self.local_sol_num = local_sol_num
 
     @timer
-    def get_policy(self, solver='GRB'):
+    def get_policy(self, solver=SOLVER):
         for i in range(self.local_sol_num):
             init_CT = {j: float(random.randint(1, 150)) for j in self.all_nodes}
             self.run_one_instance(init_CT, solver)
@@ -35,7 +37,8 @@ class SimpleSLP(BaseSLP):
 
 
 class ParallelSimpleSLP(BaseSLP):
-    def __init__(self, gsm_instance, graph, termination_parm=1e-4, opt_gap=0.01, max_iter_num=200, local_sol_num=20):
+    def __init__(self, gsm_instance, graph, termination_parm=TERMINATION_PARM, opt_gap=OPT_GAP,
+                 max_iter_num=MAX_ITER_NUM, local_sol_num=LOCAL_SOL_NUM):
         super().__init__(gsm_instance, graph, termination_parm, opt_gap, max_iter_num)
         self.local_sol_num = local_sol_num
 

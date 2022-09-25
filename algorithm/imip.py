@@ -8,10 +8,11 @@ from utils.copt_pyomo import *
 from utils.gsm_utils import *
 from utils.utils import *
 from domain.policy import Policy
+from algorithm.default_paras import *
 
 
 class IterativeMIP:
-    def __init__(self, gsm_instance, termination_parm=1e-4, opt_gap=0.01, max_iter_num=300):
+    def __init__(self, gsm_instance, termination_parm=TERMINATION_PARM, opt_gap=OPT_GAP, max_iter_num=MAX_ITER_NUM):
         self.gsm_instance = gsm_instance
         self.graph = gsm_instance.graph
         self.all_nodes = gsm_instance.all_nodes
@@ -31,7 +32,7 @@ class IterativeMIP:
         self.max_iter_num = max_iter_num
 
     @timer
-    def get_policy(self, solver='GRB'):
+    def get_policy(self, solver=SOLVER):
         CT_k = {j: 1.0 for j in self.all_nodes}
         a_k = {j: self.grad_vb_func[j](CT_k[j]) for j in self.all_nodes}
         f_k = {j: self.vb_func[j](CT_k[j]) - self.grad_vb_func[j](CT_k[j]) * CT_k[j] for j in self.all_nodes}
@@ -48,10 +49,6 @@ class IterativeMIP:
                 sol_k = self.imilp_step_pyomo(obj_para_k, pyo_solver='GRB')
             elif solver == 'PYO_CBC':
                 sol_k = self.imilp_step_pyomo(obj_para_k, pyo_solver='CBC')
-            elif solver == 'PYO_SCIP':
-                sol_k = self.imilp_step_pyomo(obj_para_k, pyo_solver='SCIP')
-            elif solver == 'PYO_GLPK':
-                sol_k = self.imilp_step_pyomo(obj_para_k, pyo_solver='GLPK')
             else:
                 raise AttributeError('undefined solver')
             CT_k = sol_k['CT']

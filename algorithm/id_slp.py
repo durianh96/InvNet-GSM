@@ -4,16 +4,19 @@ from utils.copt_pyomo import *
 from utils.gsm_utils import *
 from utils.utils import *
 from domain.policy import Policy
+from algorithm.default_paras import *
 
 
 class IterativeDecompositionSLP(object):
-    def __init__(self, gsm_instance, termination_parm=1e-4, opt_gap=0.01, max_iter_num=300, local_sol_num=5):
+    def __init__(self, gsm_instance, termination_parm=TERMINATION_PARM, opt_gap=OPT_GAP, max_iter_num=MAX_ITER_NUM,
+                 local_sol_num=LOCAL_SOL_NUM_ID, stability_threshold=STABILITY_THRESHOLD):
         self.all_nodes = gsm_instance.all_nodes
         self.gsm_instance = gsm_instance
         self.termination_parm = termination_parm
         self.opt_gap = opt_gap
         self.max_iter_num = max_iter_num
         self.local_sol_num = local_sol_num
+        self.stability_threshold = stability_threshold
 
         self.to_run_slp_pool = []
         self.solved_slp_pool = []
@@ -21,7 +24,7 @@ class IterativeDecompositionSLP(object):
         self.sol = {'S': {}, 'SI': {}, 'CT': {}}
 
     @timer
-    def get_policy(self, solver='GRB', stability_threshold=0.0):
+    def get_policy(self, solver=SOLVER):
         start_slp_model = SingleSLP(
             gsm_instance=self.gsm_instance,
             status='TO_RUN_SLP',
@@ -34,7 +37,7 @@ class IterativeDecompositionSLP(object):
 
         while len(self.to_run_slp_pool) > 0:
             single_slp_model = self.to_run_slp_pool.pop(0)
-            single_slp_model.run_slp(solver, stability_threshold)
+            single_slp_model.run_slp(solver, self.stability_threshold)
             self.solved_slp_pool.append(single_slp_model)
             self.sol['S'].update(single_slp_model.sol['S'])
             self.sol['SI'].update(single_slp_model.sol['SI'])
@@ -60,12 +63,13 @@ class IterativeDecompositionSLP(object):
 
     def get_approach_paras(self):
         paras = {'termination_parm': self.termination_parm, 'opt_gap': self.opt_gap, 'max_iter_num': self.max_iter_num,
-                 'local_sol_num': self.local_sol_num}
+                 'local_sol_num': self.local_sol_num, 'stability_threshold': self.stability_threshold}
         return paras
 
 
 class SingleSLP(BaseSLP):
-    def __init__(self, gsm_instance, status, termination_parm=1e-4, opt_gap=0.01, max_iter_num=200, local_sol_num=5,
+    def __init__(self, gsm_instance, status, termination_parm=TERMINATION_PARM, opt_gap=OPT_GAP,
+                 max_iter_num=MAX_ITER_NUM, local_sol_num=LOCAL_SOL_NUM_ID,
                  input_s_ub_dict=None, input_si_lb_dict=None):
         super().__init__(gsm_instance, termination_parm, opt_gap, max_iter_num, input_s_ub_dict, input_si_lb_dict)
         self.status = status  # 'TO_RUN_SLP' / 'SPLIT' / 'TO_RUN_DP' /'SOLVED'
@@ -78,7 +82,7 @@ class SingleSLP(BaseSLP):
 
         self.sub_slp_pool = []
 
-    def run_slp(self, solver='GRB', stability_threshold=0.0):
+    def run_slp(self, solver, stability_threshold):
         for _ in range(self.local_sol_num):
             init_CT = {j: float(random.randint(1, 150)) for j in self.all_nodes}
             self.run_one_instance(init_CT, solver)
