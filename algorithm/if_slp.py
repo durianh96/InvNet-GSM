@@ -28,16 +28,21 @@ class IterativeFixingSLP(BaseSLP):
         return policy
 
     def get_slp_sol(self, solver):
-        nodes_info = {'fix_S_nodes': set(), 'fix_SI_nodes': set(), 'fix_CT_nodes': set(),
-                      'completely_fix_nodes': set(), 'completely_free_nodes': self.all_nodes,
-                      'solely_fix_S_nodes': set(), 'free_S_nodes': self.all_nodes,
-                      'solely_fix_SI_nodes': set(), 'free_SI_nodes': self.all_nodes,
-                      'solely_fix_CT_nodes': set(), 'free_CT_nodes': self.all_nodes,
-                      'fix_S': {}, 'fix_SI': {}, 'fix_CT': {},
-                      'completely_fix_S': {}, 'completely_fix_SI': {}, 'completely_fix_CT': {}}
+        # nodes_info = {'fix_S_nodes': set(), 'fix_SI_nodes': set(), 'fix_CT_nodes': set(),
+        #               'completely_fix_nodes': set(), 'completely_free_nodes': self.all_nodes,
+        #               'solely_fix_S_nodes': set(), 'free_S_nodes': self.all_nodes,
+        #               'solely_fix_SI_nodes': set(), 'free_SI_nodes': self.all_nodes,
+        #               'solely_fix_CT_nodes': set(), 'free_CT_nodes': self.all_nodes,
+        #               'fix_S': {}, 'fix_SI': {}, 'fix_CT': {},
+        #               'completely_fix_S': {}, 'completely_fix_SI': {}, 'completely_fix_CT': {}}
+        nodes_info = {'completely_fix_nodes': set(),
+                      'completely_free_nodes': self.all_nodes,
+                      'completely_fix_S': {},
+                      'completely_fix_SI': {},
+                      'completely_fix_CT': {}}
         for i in range(self.local_sol_num):
             init_CT = {j: float(random.randint(1, 150)) for j in self.all_nodes}
-            init_CT.update(nodes_info['fix_CT'])
+            init_CT.update(nodes_info['completely_fix_CT'])
             self.run_one_instance_completely_fix(init_CT, nodes_info, solver)
             if len(self.results) > 0:
                 if len(self.results) % self.stable_finding_iter == 0:
@@ -219,9 +224,9 @@ class IterativeFixingSLP(BaseSLP):
 
         solver.solve(m, tee=False)
 
-        step_sol = {'S': {node: float(m.S[node].value) for node in nodes_info['free_S_nodes']},
-                    'SI': {node: float(m.SI[node].value) for node in nodes_info['free_SI_nodes']},
-                    'CT': {node: float(m.CT[node].value) for node in nodes_info['free_CT_nodes']}}
+        step_sol = {'S': {node: float(m.S[node].value) for node in nodes_info['completely_free_nodes']},
+                    'SI': {node: float(m.SI[node].value) for node in nodes_info['completely_free_nodes']},
+                    'CT': {node: float(m.CT[node].value) for node in nodes_info['completely_free_nodes']}}
         step_sol['S'].update(nodes_info['completely_fix_S'])
         step_sol['SI'].update(nodes_info['completely_fix_SI'])
         step_sol['CT'].update(nodes_info['completely_fix_CT'])

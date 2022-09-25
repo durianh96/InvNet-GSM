@@ -103,9 +103,9 @@ class SingleSLP(BaseSLP):
                 if len(sub_gsm_instance.all_nodes) == 1:
                     single_node = list(sub_gsm_instance.all_nodes)[0]
                     if single_node in self.slp_nodes_info['completely_fix_nodes']:
-                        self.sol['S'][single_node] = self.slp_nodes_info['fix_S'][single_node]
-                        self.sol['SI'][single_node] = self.slp_nodes_info['fix_SI'][single_node]
-                        self.sol['CT'][single_node] = self.slp_nodes_info['fix_CT'][single_node]
+                        self.sol['S'][single_node] = self.slp_nodes_info['completely_fix_S'][single_node]
+                        self.sol['SI'][single_node] = self.slp_nodes_info['completely_fix_SI'][single_node]
+                        self.sol['CT'][single_node] = self.slp_nodes_info['completely_fix_CT'][single_node]
                     else:
                         self.sol['S'][single_node] = sub_s_ub.get(single_node, 999)
                         self.sol['SI'][single_node] = sub_si_lb.get(single_node, 0)
