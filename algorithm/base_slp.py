@@ -191,7 +191,7 @@ class BaseSLP:
             m.constrs.add(m.CT[j] == m.SI[j] + self.lt_dict[j] - m.S[j])
 
         # sla
-        for j in self.demand_nodes:
+        for j in set(self.demand_nodes) & set(self.sla_dict.keys()):
             m.constrs.add(m.S[j] <= int(self.sla_dict[j]))
 
         # si >= s
