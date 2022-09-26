@@ -98,7 +98,7 @@ class DynamicProgramming:
         for node in self.sorted_list[-2::-1]:
             parent_node = self.parent_dict[node]
             if node in self.sub_succ_dict[parent_node]:
-                node_SI = opt_sol['S'][parent_node]
+                node_SI = max(opt_sol['S'][parent_node], min(self.SI_index[node]))
                 node_S = self.g_argmin[node, node_SI]
             elif node in self.sub_pred_dict[parent_node]:
                 node_S = min(opt_sol['SI'][parent_node], max(self.S_index[node]))
