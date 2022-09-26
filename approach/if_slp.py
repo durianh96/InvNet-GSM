@@ -78,6 +78,8 @@ class IterativeFixingSLP(BaseSLP):
                     return step_sol
 
     def slp_step_completely_fix_grb(self, obj_para, nodes_info):
+        import gurobipy as gp
+        from gurobipy import GRB
         m = gp.Model('slp_step_completely_fix')
 
         S = m.addVars(nodes_info['partially_free_nodes'], vtype=GRB.CONTINUOUS, lb=0)
@@ -124,6 +126,8 @@ class IterativeFixingSLP(BaseSLP):
             raise Exception('Solution has not been found')
 
     def slp_step_completely_fix_copt(self, obj_para, nodes_info):
+        import coptpy as cp
+        from coptpy import COPT
         env = cp.Envr()
         m = env.createModel('slp_step_completely_fix')
 
@@ -177,12 +181,9 @@ class IterativeFixingSLP(BaseSLP):
         import pyomo.opt as pyopt
         m = pyo.ConcreteModel('slp_step_completely_fix')
         # adding variables
-        m.S = pyo.Var(nodes_info['partially_free_nodes'],
-                      domain=pyo.NonNegativeReals)
-        m.SI = pyo.Var(nodes_info['partially_free_nodes'],
-                       domain=pyo.NonNegativeReals)
-        m.CT = pyo.Var(nodes_info['partially_free_nodes'],
-                       domain=pyo.NonNegativeReals)
+        m.S = pyo.Var(nodes_info['partially_free_nodes'], domain=pyo.NonNegativeReals)
+        m.SI = pyo.Var(nodes_info['partially_free_nodes'], domain=pyo.NonNegativeReals)
+        m.CT = pyo.Var(nodes_info['partially_free_nodes'], domain=pyo.NonNegativeReals)
 
         # constraints
         m.constrs = pyo.ConstraintList()
