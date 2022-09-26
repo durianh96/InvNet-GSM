@@ -4,7 +4,7 @@ from utils.utils import *
 from utils.gsm_utils import *
 from data_process import *
 from domain.policy import Policy
-from algorithm.default_paras import *
+from default_paras import TIME_UNIT, MAX_ITER_NUM
 
 
 class HeuristicGeneralNetworksAlgorithm:
@@ -39,6 +39,8 @@ class HeuristicGeneralNetworksAlgorithm:
 
         self.initial_bounds()
         self.cur_opt_dict = {self.init_ss_cost: self.init_sol}
+
+        self.need_solver = False
 
     def rank_edge(self):
         # add cost on each edge

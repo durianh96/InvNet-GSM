@@ -9,7 +9,7 @@ import copy
 from utils.copt_pyomo import *
 from utils.gsm_utils import *
 from utils.utils import *
-from algorithm.default_paras import *
+from default_paras import TERMINATION_PARM, OPT_GAP, MAX_ITER_NUM
 
 
 class BaseSLP:
@@ -45,7 +45,7 @@ class BaseSLP:
         self.results = []
         self.best_sol = None
 
-    def get_one_instance_policy(self, solver=SOLVER):
+    def get_one_instance_policy(self, solver):
         init_CT = {j: float(random.randint(1, 150)) for j in self.all_nodes}
         sol = self.run_one_instance(init_CT, solver)
         return sol
@@ -178,7 +178,7 @@ class BaseSLP:
             logger.error('Error status is ', m.status)
             raise Exception('Solution has not been found')
 
-    def slp_step_pyomo(self, obj_para, pyo_solver='GRB'):
+    def slp_step_pyomo(self, obj_para, pyo_solver):
         m = pyo.ConcreteModel('slp_step')
         # adding variables
         m.S = pyo.Var(self.all_nodes, domain=pyo.NonNegativeReals)
@@ -291,31 +291,26 @@ class BaseSLP:
 
         completely_fix_nodes = fix_S_nodes & fix_SI_nodes & fix_CT_nodes
 
-        # solely_fix_S_nodes = fix_S_nodes - completely_fix_nodes
-        # free_S_nodes = set(self.all_nodes) - fix_S_nodes
-        # solely_fix_SI_nodes = fix_SI_nodes - completely_fix_nodes
-        # free_SI_nodes = set(self.all_nodes) - fix_SI_nodes
-        # solely_fix_CT_nodes = fix_CT_nodes - completely_fix_nodes
-        # free_CT_nodes = set(self.all_nodes) - fix_CT_nodes
-        # # completely_free_nodes = set(self.all_nodes) - fix_S_nodes - fix_SI_nodes - fix_CT_nodes
-        completely_free_nodes = set(self.all_nodes) - completely_fix_nodes
+        solely_fix_S_nodes = fix_S_nodes - completely_fix_nodes
+        free_S_nodes = self.all_nodes - fix_S_nodes
+        solely_fix_SI_nodes = fix_SI_nodes - completely_fix_nodes
+        free_SI_nodes = self.all_nodes - fix_SI_nodes
+        solely_fix_CT_nodes = fix_CT_nodes - completely_fix_nodes
+        free_CT_nodes = self.all_nodes - fix_CT_nodes
+        completely_free_nodes = self.all_nodes - fix_S_nodes - fix_SI_nodes - fix_CT_nodes
+        partially_free_nodes = self.all_nodes - completely_fix_nodes
 
         completely_fix_S = {j: fix_S[j] for j in completely_fix_nodes}
         completely_fix_SI = {j: fix_SI[j] for j in completely_fix_nodes}
         completely_fix_CT = {j: fix_CT[j] for j in completely_fix_nodes}
 
-        nodes_info = {'completely_fix_nodes': completely_fix_nodes,
-                      'completely_free_nodes': completely_free_nodes,
-                      'completely_fix_S': completely_fix_S,
-                      'completely_fix_SI': completely_fix_SI,
+        nodes_info = {'fix_S_nodes': fix_S_nodes, 'fix_SI_nodes': fix_SI_nodes, 'fix_CT_nodes': fix_CT_nodes,
+                      'completely_fix_nodes': completely_fix_nodes, 'completely_free_nodes': completely_free_nodes,
+                      'partially_free_nodes': partially_free_nodes,
+                      'solely_fix_S_nodes': solely_fix_S_nodes, 'free_S_nodes': free_S_nodes,
+                      'solely_fix_SI_nodes': solely_fix_SI_nodes, 'free_SI_nodes': free_SI_nodes,
+                      'solely_fix_CT_nodes': solely_fix_CT_nodes, 'free_CT_nodes': free_CT_nodes,
+                      'fix_S': fix_S, 'fix_SI': fix_SI, 'fix_CT': fix_CT,
+                      'completely_fix_S': completely_fix_S, 'completely_fix_SI': completely_fix_SI,
                       'completely_fix_CT': completely_fix_CT}
-
-        # nodes_info = {'fix_S_nodes': fix_S_nodes, 'fix_SI_nodes': fix_SI_nodes, 'fix_CT_nodes': fix_CT_nodes,
-        #               'completely_fix_nodes': completely_fix_nodes, 'completely_free_nodes': completely_free_nodes,
-        #               'solely_fix_S_nodes': solely_fix_S_nodes, 'free_S_nodes': free_S_nodes,
-        #               'solely_fix_SI_nodes': solely_fix_SI_nodes, 'free_SI_nodes': free_SI_nodes,
-        #               'solely_fix_CT_nodes': solely_fix_CT_nodes, 'free_CT_nodes': free_CT_nodes,
-        #               'fix_S': fix_S, 'fix_SI': fix_SI, 'fix_CT': fix_CT,
-        #               'completely_fix_S': completely_fix_S, 'completely_fix_SI': completely_fix_SI,
-        #               'completely_fix_CT': completely_fix_CT}
         return nodes_info

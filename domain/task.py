@@ -9,6 +9,7 @@ from algorithm.imip import IterativeMIP
 from algorithm.simple_slp import SimpleSLP
 from algorithm.if_slp import IterativeFixingSLP
 from algorithm.id_slp import IterativeDecompositionSLP
+from default_paras import SOLVER
 
 _approach_map = {
     'PWL': PieceWiseLinear,
@@ -35,12 +36,15 @@ class Task:
         self.task_time = None
         self.task_info = None
 
-    def run(self):
+    def run(self, solver=SOLVER):
         kwargs = copy(self.approach_paras)
         kwargs.update({'gsm_instance': self.gsm_instance})
         approach = _approach_map[self.approach_name](**kwargs)
         time0 = datetime.datetime.now()
-        self.policy = approach.get_policy()
+        if approach.need_solver:
+            self.policy = approach.get_policy(solver)
+        else:
+            self.policy = approach.get_policy()
         self.task_time = datetime.datetime.now() - time0
         self.approach_paras.update(approach.get_approach_paras())
         self.task_status = 'SOLVED'

@@ -1,6 +1,7 @@
 from algorithm.base_slp import *
 from domain.policy import Policy
-from algorithm.default_paras import *
+from default_paras import TERMINATION_PARM, OPT_GAP, MAX_ITER_NUM, LOCAL_SOL_NUM, STABLE_FINDING_ITER, \
+    STABILITY_THRESHOLD
 
 
 class IterativeFixingSLP(BaseSLP):
@@ -12,8 +13,10 @@ class IterativeFixingSLP(BaseSLP):
         self.stable_finding_iter = stable_finding_iter
         self.stability_threshold = stability_threshold
 
+        self.need_solver = True
+
     @timer
-    def get_policy(self, solver=SOLVER):
+    def get_policy(self, solver):
         best_sol = self.get_slp_sol(solver)
         bs_dict = {node: self.db_func[node](best_sol['CT'][node]) for node in self.all_nodes}
         ss_dict = {node: self.vb_func[node](best_sol['CT'][node]) for node in self.all_nodes}
@@ -28,18 +31,14 @@ class IterativeFixingSLP(BaseSLP):
         return policy
 
     def get_slp_sol(self, solver):
-        # nodes_info = {'fix_S_nodes': set(), 'fix_SI_nodes': set(), 'fix_CT_nodes': set(),
-        #               'completely_fix_nodes': set(), 'completely_free_nodes': self.all_nodes,
-        #               'solely_fix_S_nodes': set(), 'free_S_nodes': self.all_nodes,
-        #               'solely_fix_SI_nodes': set(), 'free_SI_nodes': self.all_nodes,
-        #               'solely_fix_CT_nodes': set(), 'free_CT_nodes': self.all_nodes,
-        #               'fix_S': {}, 'fix_SI': {}, 'fix_CT': {},
-        #               'completely_fix_S': {}, 'completely_fix_SI': {}, 'completely_fix_CT': {}}
-        nodes_info = {'completely_fix_nodes': set(),
-                      'completely_free_nodes': self.all_nodes,
-                      'completely_fix_S': {},
-                      'completely_fix_SI': {},
-                      'completely_fix_CT': {}}
+        nodes_info = {'fix_S_nodes': set(), 'fix_SI_nodes': set(), 'fix_CT_nodes': set(),
+                      'completely_fix_nodes': set(), 'completely_free_nodes': self.all_nodes,
+                      'partially_free_nodes': self.all_nodes,
+                      'solely_fix_S_nodes': set(), 'free_S_nodes': self.all_nodes,
+                      'solely_fix_SI_nodes': set(), 'free_SI_nodes': self.all_nodes,
+                      'solely_fix_CT_nodes': set(), 'free_CT_nodes': self.all_nodes,
+                      'fix_S': {}, 'fix_SI': {}, 'fix_CT': {},
+                      'completely_fix_S': {}, 'completely_fix_SI': {}, 'completely_fix_CT': {}}
         for i in range(self.local_sol_num):
             init_CT = {j: float(random.randint(1, 150)) for j in self.all_nodes}
             init_CT.update(nodes_info['completely_fix_CT'])
@@ -81,35 +80,31 @@ class IterativeFixingSLP(BaseSLP):
     def slp_step_completely_fix_grb(self, obj_para, nodes_info):
         m = gp.Model('slp_step_completely_fix')
 
-        S = m.addVars(nodes_info['completely_free_nodes'], vtype=GRB.CONTINUOUS, lb=0)
-        SI = m.addVars(nodes_info['completely_free_nodes'], vtype=GRB.CONTINUOUS, lb=0)
-        CT = m.addVars(nodes_info['completely_free_nodes'], vtype=GRB.CONTINUOUS, lb=0)
+        S = m.addVars(nodes_info['partially_free_nodes'], vtype=GRB.CONTINUOUS, lb=0)
+        SI = m.addVars(nodes_info['partially_free_nodes'], vtype=GRB.CONTINUOUS, lb=0)
+        CT = m.addVars(nodes_info['partially_free_nodes'], vtype=GRB.CONTINUOUS, lb=0)
 
         # covering time
-        m.addConstrs((CT[j] == SI[j] + self.lt_dict[j] - S[j] for j in nodes_info['completely_free_nodes']))
+        m.addConstrs((CT[j] == SI[j] + self.lt_dict[j] - S[j] for j in nodes_info['partially_free_nodes']))
         # sla
         m.addConstrs(
-            (S[j] <= int(self.sla_dict[j]) for j in self.demand_nodes if j in nodes_info['completely_free_nodes']))
+            (S[j] <= int(self.sla_dict[j]) for j in self.demand_nodes if j in nodes_info['partially_free_nodes']))
 
         # si >= s
         m.addConstrs((SI[succ] - S[pred] >= 0 for (pred, succ) in self.edge_list if
-                      (succ in nodes_info['completely_free_nodes']) and (pred in nodes_info['completely_free_nodes'])))
-        m.addConstrs((SI[succ] - nodes_info['completely_fix_S'][pred] >= 0 for (pred, succ) in self.edge_list if
-                      (succ in nodes_info['completely_free_nodes']) and (pred in nodes_info['completely_fix_nodes'])))
-        m.addConstrs((nodes_info['completely_fix_SI'][succ] - S[pred] >= 0 for (pred, succ) in self.edge_list if
-                      (succ in nodes_info['completely_fix_nodes']) and (pred in nodes_info['completely_free_nodes'])))
+                      (succ in nodes_info['partially_free_nodes']) and (pred in nodes_info['partially_free_nodes'])))
 
         m.setObjective(gp.quicksum(obj_para['A'][node] * CT[node] + obj_para['B'][node]
-                                   for node in nodes_info['completely_free_nodes']), GRB.MINIMIZE)
+                                   for node in nodes_info['partially_free_nodes']), GRB.MINIMIZE)
 
         m.Params.MIPGap = self.opt_gap
         m.Params.LogToConsole = 0
         m.optimize()
 
         if m.status == GRB.OPTIMAL:
-            step_sol = {'S': {node: float(round(S[node].x)) for node in nodes_info['completely_free_nodes']},
-                        'SI': {node: float(round(SI[node].x)) for node in nodes_info['completely_free_nodes']},
-                        'CT': {node: float(round(CT[node].x)) for node in nodes_info['completely_free_nodes']}}
+            step_sol = {'S': {node: float(round(S[node].x)) for node in nodes_info['partially_free_nodes']},
+                        'SI': {node: float(round(SI[node].x)) for node in nodes_info['partially_free_nodes']},
+                        'CT': {node: float(round(CT[node].x)) for node in nodes_info['partially_free_nodes']}}
             step_sol['S'].update(nodes_info['completely_fix_S'])
             step_sol['SI'].update(nodes_info['completely_fix_SI'])
             step_sol['CT'].update(nodes_info['completely_fix_CT'])
@@ -132,35 +127,31 @@ class IterativeFixingSLP(BaseSLP):
         env = cp.Envr()
         m = env.createModel('slp_step_completely_fix')
 
-        S = m.addVars(nodes_info['completely_free_nodes'], vtype=COPT.CONTINUOUS, lb=0)
-        SI = m.addVars(nodes_info['completely_free_nodes'], vtype=COPT.CONTINUOUS, lb=0)
-        CT = m.addVars(nodes_info['completely_free_nodes'], vtype=COPT.CONTINUOUS, lb=0)
+        S = m.addVars(nodes_info['partially_free_nodes'], vtype=COPT.CONTINUOUS, lb=0)
+        SI = m.addVars(nodes_info['partially_free_nodes'], vtype=COPT.CONTINUOUS, lb=0)
+        CT = m.addVars(nodes_info['partially_free_nodes'], vtype=COPT.CONTINUOUS, lb=0)
 
         # covering time
-        m.addConstrs((CT[j] == SI[j] + self.lt_dict[j] - S[j] for j in nodes_info['completely_free_nodes']))
+        m.addConstrs((CT[j] == SI[j] + self.lt_dict[j] - S[j] for j in nodes_info['partially_free_nodes']))
         # sla
         m.addConstrs(
-            (S[j] <= int(self.sla_dict[j]) for j in self.demand_nodes if j in nodes_info['completely_free_nodes']))
+            (S[j] <= int(self.sla_dict[j]) for j in self.demand_nodes if j in nodes_info['partially_free_nodes']))
 
         # si >= s
         m.addConstrs((SI[succ] - S[pred] >= 0 for (pred, succ) in self.edge_list if
-                      (succ in nodes_info['completely_free_nodes']) and (pred in nodes_info['completely_free_nodes'])))
-        m.addConstrs((SI[succ] - nodes_info['completely_fix_S'][pred] >= 0 for (pred, succ) in self.edge_list if
-                      (succ in nodes_info['completely_free_nodes']) and (pred in nodes_info['completely_fix_nodes'])))
-        m.addConstrs((nodes_info['completely_fix_SI'][succ] - S[pred] >= 0 for (pred, succ) in self.edge_list if
-                      (succ in nodes_info['completely_fix_nodes']) and (pred in nodes_info['completely_free_nodes'])))
+                      (succ in nodes_info['partially_free_nodes']) and (pred in nodes_info['partially_free_nodes'])))
 
         m.setObjective(cp.quicksum(obj_para['A'][node] * CT[node] + obj_para['B'][node]
-                                   for node in nodes_info['completely_free_nodes']), COPT.MINIMIZE)
+                                   for node in nodes_info['partially_free_nodes']), COPT.MINIMIZE)
         m.setParam(COPT.Param.RelGap, self.opt_gap)
         m.setParam(COPT.Param.Logging, False)
         m.setParam(COPT.Param.LogToConsole, False)
         m.solve()
 
         if m.status == COPT.OPTIMAL:
-            step_sol = {'S': {node: float(round(S[node].x)) for node in nodes_info['completely_free_nodes']},
-                        'SI': {node: float(round(SI[node].x)) for node in nodes_info['completely_free_nodes']},
-                        'CT': {node: float(round(CT[node].x)) for node in nodes_info['completely_free_nodes']}}
+            step_sol = {'S': {node: float(round(S[node].x)) for node in nodes_info['partially_free_nodes']},
+                        'SI': {node: float(round(SI[node].x)) for node in nodes_info['partially_free_nodes']},
+                        'CT': {node: float(round(CT[node].x)) for node in nodes_info['partially_free_nodes']}}
             step_sol['S'].update(nodes_info['completely_fix_S'])
             step_sol['SI'].update(nodes_info['completely_fix_SI'])
             step_sol['CT'].update(nodes_info['completely_fix_CT'])
@@ -181,7 +172,7 @@ class IterativeFixingSLP(BaseSLP):
             logger.error('Error status is ', m.status)
             raise Exception('Solution has not been found')
 
-    def slp_step_completely_fix_pyomo(self, obj_para, nodes_info, pyo_solver='GRB'):
+    def slp_step_completely_fix_pyomo(self, obj_para, nodes_info, pyo_solver):
         m = pyo.ConcreteModel('slp_step_completely_fix')
         # adding variables
         m.S = pyo.Var(nodes_info['completely_free_nodes'], domain=pyo.NonNegativeReals)

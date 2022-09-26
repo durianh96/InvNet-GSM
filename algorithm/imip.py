@@ -8,7 +8,7 @@ from utils.copt_pyomo import *
 from utils.gsm_utils import *
 from utils.utils import *
 from domain.policy import Policy
-from algorithm.default_paras import *
+from default_paras import TERMINATION_PARM, OPT_GAP, MAX_ITER_NUM
 
 
 class IterativeMIP:
@@ -31,8 +31,10 @@ class IterativeMIP:
         self.opt_gap = opt_gap
         self.max_iter_num = max_iter_num
 
+        self.need_solver = True
+
     @timer
-    def get_policy(self, solver=SOLVER):
+    def get_policy(self, solver):
         CT_k = {j: 1.0 for j in self.all_nodes}
         a_k = {j: self.grad_vb_func[j](CT_k[j]) for j in self.all_nodes}
         f_k = {j: self.vb_func[j](CT_k[j]) - self.grad_vb_func[j](CT_k[j]) * CT_k[j] for j in self.all_nodes}
@@ -173,7 +175,7 @@ class IterativeMIP:
         else:
             raise Exception("Solution has not been found within given time limit")
 
-    def imilp_step_pyomo(self, obj_para, pyo_solver='GRB'):
+    def imilp_step_pyomo(self, obj_para, pyo_solver):
         m = pyo.ConcreteModel('imilp_step')
         # adding variables
         m.S = pyo.Var(self.all_nodes, domain=pyo.NonNegativeReals)
@@ -211,13 +213,6 @@ class IterativeMIP:
         elif pyo_solver == 'CBC':
             solver = pyopt.SolverFactory('cbc')
             solver.options['ratio'] = self.opt_gap
-        elif pyo_solver == 'GLPK':
-            solver = pyopt.SolverFactory('glpk')
-            solver.options['TolObj'] = self.opt_gap
-        elif pyo_solver == 'SCIP':
-            solver = pyopt.SolverFactory('scip')
-            solver.options['limits/gap'] = self.opt_gap
-            solver.options['limits/time'] = 1e+20
         else:
             raise AttributeError
 

@@ -8,7 +8,7 @@ from utils.copt_pyomo import *
 from utils.gsm_utils import *
 from utils.utils import *
 from domain.policy import Policy
-from algorithm.default_paras import *
+from default_paras import TERMINATION_PARM, OPT_GAP, MAX_ITER_NUM
 
 
 class DynamicSloping:
@@ -30,8 +30,10 @@ class DynamicSloping:
         self.opt_gap = opt_gap
         self.max_iter_num = max_iter_num
 
+        self.need_solver = True
+
     @timer
-    def get_policy(self, solver=SOLVER):
+    def get_policy(self, solver):
         a_k = {j: 1 for j in self.all_nodes}
         obj_value = []
         for i in range(self.max_iter_num):
@@ -156,7 +158,7 @@ class DynamicSloping:
             raise Exception("Solution has not been found within given time limit")
         return sol_k
 
-    def dynamic_sloping_pyomo(self, a_k, pyo_solver='GRB'):
+    def dynamic_sloping_pyomo(self, a_k, pyo_solver):
         m = pyo.ConcreteModel('ds_step')
         # adding variables
         m.S = pyo.Var(self.all_nodes, domain=pyo.NonNegativeReals)

@@ -2,7 +2,7 @@ from collections import defaultdict
 from utils.gsm_utils import *
 from utils.utils import *
 from domain.policy import Policy
-from algorithm.default_paras import *
+from default_paras import TIME_UNIT
 
 
 class DynamicProgramming:

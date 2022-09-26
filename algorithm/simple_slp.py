@@ -1,7 +1,7 @@
 import multiprocess as mp
 from domain.policy import Policy
 from algorithm.base_slp import *
-from algorithm.default_paras import *
+from default_paras import TERMINATION_PARM, OPT_GAP, MAX_ITER_NUM, LOCAL_SOL_NUM
 
 
 class SimpleSLP(BaseSLP):
@@ -10,8 +10,10 @@ class SimpleSLP(BaseSLP):
         super().__init__(gsm_instance, termination_parm, opt_gap, max_iter_num)
         self.local_sol_num = local_sol_num
 
+        self.need_solver = True
+
     @timer
-    def get_policy(self, solver=SOLVER):
+    def get_policy(self, solver):
         for i in range(self.local_sol_num):
             init_CT = {j: float(random.randint(1, 150)) for j in self.all_nodes}
             self.run_one_instance(init_CT, solver)
@@ -43,7 +45,7 @@ class ParallelSimpleSLP(BaseSLP):
         self.local_sol_num = local_sol_num
 
     @timer
-    def get_policy(self, solver='GRB'):
+    def get_policy(self, solver):
         m = BaseSLP(self.gsm_instance, self.graph, self.termination_parm, self.opt_gap, self.max_iter_num)
         pool = mp.Pool(processes=8)
         sol_results = pool.map(m.get_one_instance_policy, [solver] * self.local_sol_num)

@@ -10,8 +10,8 @@ gsm_instance = generate_gsm_instance(graph, 'INSTANCE_01')
 write_instance_to_csv(gsm_instance, 'data/')
 # load_instance_from_csv('')
 
-task = Task('TASK_01', gsm_instance, 'IF-SLP')
-task.run()
+task = Task('TASK_01', gsm_instance, 'HGNA')
+task.run(solver='PYO_CBC')
 task.write_to_csv('data/')
 
 

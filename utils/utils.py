@@ -1,5 +1,6 @@
 import datetime
 import pandas as pd
+import numpy as np
 import logging
 
 EPS = 1e-5

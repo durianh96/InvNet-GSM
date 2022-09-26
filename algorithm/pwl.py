@@ -8,7 +8,7 @@ from utils.copt_pyomo import *
 from utils.gsm_utils import *
 from utils.utils import *
 from domain.policy import Policy
-from algorithm.default_paras import *
+from default_paras import TIME_UNIT, OPT_GAP, TIME_LIMIT
 
 
 class PieceWiseLinear:
@@ -35,8 +35,10 @@ class PieceWiseLinear:
         self.ar_dict = None
         self.br_dict = None
 
+        self.need_solver = True
+
     @timer
-    def get_policy(self, solver=SOLVER):
+    def get_policy(self, solver):
         self.cal_ar_br()
         if solver == 'GRB':
             sol = self.pwl_grb()
@@ -215,7 +217,7 @@ class PieceWiseLinear:
             logger.error('Error status is ', m.status)
             raise Exception('Solution has not been found')
 
-    def pwl_pyomo(self, pyo_solver='GRB'):
+    def pwl_pyomo(self, pyo_solver):
         jt_list = list(self.ar_dict.keys())
         jt_dict = {j: list(range(0, int(self.cum_lt_dict[j]) + 1)) for j in self.all_nodes}
 

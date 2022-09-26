@@ -4,7 +4,7 @@ from utils.copt_pyomo import *
 from utils.gsm_utils import *
 from utils.utils import *
 from domain.policy import Policy
-from algorithm.default_paras import *
+from default_paras import TERMINATION_PARM, OPT_GAP, MAX_ITER_NUM, LOCAL_SOL_NUM_ID, STABILITY_THRESHOLD
 
 
 class IterativeDecompositionSLP(object):
@@ -23,8 +23,10 @@ class IterativeDecompositionSLP(object):
 
         self.sol = {'S': {}, 'SI': {}, 'CT': {}}
 
+        self.need_solver = True
+
     @timer
-    def get_policy(self, solver=SOLVER):
+    def get_policy(self, solver):
         start_slp_model = SingleSLP(
             gsm_instance=self.gsm_instance,
             status='TO_RUN_SLP',
