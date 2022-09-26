@@ -173,32 +173,35 @@ class IterativeFixingSLP(BaseSLP):
             raise Exception('Solution has not been found')
 
     def slp_step_completely_fix_pyomo(self, obj_para, nodes_info, pyo_solver):
+        import pyomo.environ as pyo
+        import pyomo.opt as pyopt
         m = pyo.ConcreteModel('slp_step_completely_fix')
         # adding variables
-        m.S = pyo.Var(nodes_info['completely_free_nodes'], domain=pyo.NonNegativeReals)
-        m.SI = pyo.Var(nodes_info['completely_free_nodes'], domain=pyo.NonNegativeReals)
-        m.CT = pyo.Var(nodes_info['completely_free_nodes'], domain=pyo.NonNegativeReals)
+        m.S = pyo.Var(nodes_info['partially_free_nodes'],
+                      domain=pyo.NonNegativeReals)
+        m.SI = pyo.Var(nodes_info['partially_free_nodes'],
+                       domain=pyo.NonNegativeReals)
+        m.CT = pyo.Var(nodes_info['partially_free_nodes'],
+                       domain=pyo.NonNegativeReals)
 
         # constraints
         m.constrs = pyo.ConstraintList()
-        for j in nodes_info['completely_free_nodes']:
+        for j in nodes_info['partially_free_nodes']:
             m.constrs.add(m.CT[j] == m.SI[j] + self.lt_dict[j] - m.S[j])
         # sla
         for j in self.demand_nodes:
-            if j in nodes_info['completely_free_nodes']:
+            if j in nodes_info['partially_free_nodes']:
                 m.constrs.add(m.S[j] <= int(self.sla_dict[j]))
 
         # si >= s
         for pred, succ in self.edge_list:
-            if (succ in nodes_info['completely_free_nodes']) and (pred in nodes_info['completely_free_nodes']):
+            if (succ in nodes_info['partially_free_nodes']) and (
+                    pred in nodes_info['partially_free_nodes']):
                 m.constrs.add(m.SI[succ] - m.S[pred] >= 0)
-            elif (succ in nodes_info['completely_free_nodes']) and (pred in nodes_info['completely_fix_nodes']):
-                m.constrs.add(m.SI[succ] - nodes_info['completely_fix_S'][pred] >= 0)
-            elif (succ in nodes_info['completely_fix_nodes']) and (pred in nodes_info['completely_free_nodes']):
-                m.constrs.add(nodes_info['completely_fix_SI'][succ] - m.S[pred] >= 0)
 
         m.Cost = pyo.Objective(
-            expr=sum([obj_para['A'][j] * m.CT[j] + obj_para['B'][j] for j in nodes_info['completely_free_nodes']]),
+            expr=sum([obj_para['A'][j] * m.CT[j] + obj_para['B'][j] for j in
+                      nodes_info['partially_free_nodes']]),
             sense=pyo.minimize
         )
         if pyo_solver == 'COPT':
@@ -215,9 +218,9 @@ class IterativeFixingSLP(BaseSLP):
 
         solver.solve(m, tee=False)
 
-        step_sol = {'S': {node: float(m.S[node].value) for node in nodes_info['completely_free_nodes']},
-                    'SI': {node: float(m.SI[node].value) for node in nodes_info['completely_free_nodes']},
-                    'CT': {node: float(m.CT[node].value) for node in nodes_info['completely_free_nodes']}}
+        step_sol = {'S': {node: float(m.S[node].value) for node in nodes_info['partially_free_nodes']},
+                    'SI': {node: float(m.SI[node].value) for node in nodes_info['partially_free_nodes']},
+                    'CT': {node: float(m.CT[node].value) for node in nodes_info['partially_free_nodes']}}
         step_sol['S'].update(nodes_info['completely_fix_S'])
         step_sol['SI'].update(nodes_info['completely_fix_SI'])
         step_sol['CT'].update(nodes_info['completely_fix_CT'])

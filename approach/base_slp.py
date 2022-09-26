@@ -2,6 +2,7 @@ import copy
 import random
 
 from default_paras import TERMINATION_PARM, OPT_GAP, MAX_ITER_NUM
+from utils.copt_pyomo import *
 from utils.gsm_utils import *
 from utils.utils import *
 
