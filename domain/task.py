@@ -3,6 +3,7 @@ from typing import Optional
 from copy import copy
 import pandas as pd
 import os
+from approach.dp import DynamicProgramming
 from approach.pwl import PieceWiseLinear
 from approach.hgna import HeuristicGeneralNetworksAlgorithm
 from approach.ds import DynamicSloping
@@ -13,6 +14,7 @@ from approach.id_slp import IterativeDecompositionSLP
 from default_paras import SOLVER
 
 _approach_map = {
+    'DP': DynamicProgramming,
     'PWL': PieceWiseLinear,
     'HGNA': HeuristicGeneralNetworksAlgorithm,
     'DS': DynamicSloping,

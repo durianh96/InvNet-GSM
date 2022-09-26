@@ -333,3 +333,24 @@
 2022-09-26 11:31:00,008 - /Users/durian/Nutstore Files/Research/ID-SLP/public_code/utils/utils.py[line:31] - DEBUG: func @get_policy use 0.001803 (s)
 2022-09-26 11:31:00,510 - /Users/durian/Nutstore Files/Research/ID-SLP/public_code/utils/gsm_utils.py[line:7] - INFO: ID-SLP_PYO_GRB_safety stock cost is 11246284871.95
 2022-09-26 11:31:00,510 - /Users/durian/Nutstore Files/Research/ID-SLP/public_code/utils/utils.py[line:31] - DEBUG: func @get_policy use 36.05432 (s)
+2022-09-26 14:05:45,385 - /Users/durian/Nutstore Files/Research/ID-SLP/public_code/utils/gsm_utils.py[line:7] - INFO: DP_safety stock cost is 9420879.70
+2022-09-26 14:05:45,386 - /Users/durian/Nutstore Files/Research/ID-SLP/public_code/utils/utils.py[line:31] - DEBUG: func @get_policy use 0.011283 (s)
+2022-09-26 14:06:28,163 - /Users/durian/Nutstore Files/Research/ID-SLP/public_code/utils/gsm_utils.py[line:7] - INFO: DP_safety stock cost is 1173337.81
+2022-09-26 14:06:28,164 - /Users/durian/Nutstore Files/Research/ID-SLP/public_code/utils/utils.py[line:31] - DEBUG: func @get_policy use 0.012565 (s)
+2022-09-26 14:06:32,587 - /Users/durian/Nutstore Files/Research/ID-SLP/public_code/utils/gsm_utils.py[line:7] - INFO: DP_safety stock cost is 2602981415.10
+2022-09-26 14:06:32,588 - /Users/durian/Nutstore Files/Research/ID-SLP/public_code/utils/utils.py[line:31] - DEBUG: func @get_policy use 0.097128 (s)
+2022-09-26 14:06:33,253 - /Users/durian/Nutstore Files/Research/ID-SLP/public_code/utils/gsm_utils.py[line:7] - INFO: DP_safety stock cost is 109699204.00
+2022-09-26 14:06:33,253 - /Users/durian/Nutstore Files/Research/ID-SLP/public_code/utils/utils.py[line:31] - DEBUG: func @get_policy use 0.121918 (s)
+2022-09-26 14:06:33,473 - /Users/durian/Nutstore Files/Research/ID-SLP/public_code/approach/id_slp.py[line:51] - ERROR: [['link_error', 'pred:N000804', 'node_S:10.0', 'succ:N000900', 'succ_SI:8.0'], ['link_error', 'pred:N000804', 'node_S:10.0', 'succ:N000869', 'succ_SI:9.0'], ['link_error', 'pred:N000804', 'node_S:10.0', 'succ:N000887', 'succ_SI:2.0']]
+2022-09-26 14:06:33,475 - /Users/durian/Nutstore Files/Research/ID-SLP/public_code/utils/gsm_utils.py[line:7] - INFO: ID-SLP_GRB_safety stock cost is 26868592148.86
+2022-09-26 14:06:33,476 - /Users/durian/Nutstore Files/Research/ID-SLP/public_code/utils/utils.py[line:31] - DEBUG: func @get_policy use 26.727187 (s)
+2022-09-26 14:10:18,620 - /Users/durian/Nutstore Files/Research/ID-SLP/public_code/utils/gsm_utils.py[line:7] - INFO: DP_safety stock cost is 40940672.82
+2022-09-26 14:10:18,620 - /Users/durian/Nutstore Files/Research/ID-SLP/public_code/utils/utils.py[line:31] - DEBUG: func @get_policy use 0.049458 (s)
+2022-09-26 14:10:19,090 - /Users/durian/Nutstore Files/Research/ID-SLP/public_code/utils/gsm_utils.py[line:7] - INFO: DP_safety stock cost is 31955315.84
+2022-09-26 14:10:19,090 - /Users/durian/Nutstore Files/Research/ID-SLP/public_code/utils/utils.py[line:31] - DEBUG: func @get_policy use 0.006613 (s)
+2022-09-26 14:10:24,149 - /Users/durian/Nutstore Files/Research/ID-SLP/public_code/utils/gsm_utils.py[line:7] - INFO: DP_safety stock cost is 2538595884.10
+2022-09-26 14:10:24,149 - /Users/durian/Nutstore Files/Research/ID-SLP/public_code/utils/utils.py[line:31] - DEBUG: func @get_policy use 0.080694 (s)
+2022-09-26 14:10:24,747 - /Users/durian/Nutstore Files/Research/ID-SLP/public_code/utils/gsm_utils.py[line:7] - INFO: DP_safety stock cost is 28701290.27
+2022-09-26 14:10:24,747 - /Users/durian/Nutstore Files/Research/ID-SLP/public_code/utils/utils.py[line:31] - DEBUG: func @get_policy use 0.109773 (s)
+2022-09-26 14:11:43,619 - /Users/durian/Nutstore Files/Research/ID-SLP/public_code/utils/gsm_utils.py[line:7] - INFO: ID-SLP_GRB_safety stock cost is 42893412604.58
+2022-09-26 14:11:43,621 - /Users/durian/Nutstore Files/Research/ID-SLP/public_code/utils/utils.py[line:31] - DEBUG: func @get_policy use 31.66556 (s)

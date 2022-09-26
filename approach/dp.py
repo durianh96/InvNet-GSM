@@ -70,6 +70,8 @@ class DynamicProgramming:
         self.on_hand_cost = {(node, ct): self.hc_dict[node] * self.ss_ct_dict[node, ct] for node in self.all_nodes
                              for ct in np.arange(0., self.cum_lt_dict[node] + self.time_unit, self.time_unit)}
 
+        self.need_solver = False
+
     @timer
     def get_policy(self):
         for node in self.sorted_list[:-1]:

@@ -95,19 +95,6 @@ def generate_gsm_instance(graph,
     return gsm_instance
 
 
-def write_instance_to_pickle(gsm_instance, data_dir):
-    if not os.path.exists(data_dir):
-        os.mkdir(data_dir)
-    with open(data_dir + 'gsm_instance.pkl', 'wb') as f:
-        pickle.dump(gsm_instance, f)
-
-
-def load_instance_from_pickle(data_dir):
-    with open(data_dir + 'gsm_instance.pkl', 'rb') as f:
-        gsm_instance = pickle.load(f)
-    return gsm_instance
-
-
 def write_instance_to_csv(gsm_instance, data_dir):
     if not os.path.exists(data_dir):
         os.mkdir(data_dir)
@@ -152,7 +139,7 @@ def load_instance_from_csv(data_dir):
     sigma_dict = {node: sigma for node, sigma in node_df[['node_id', 'sigma']].dropna().values.tolist()}
 
     instance_info = dict(zip(instance_info_df['instance_info'], instance_info_df['value']))
-    
+
     gsm_instance = GSMInstance(instance_id=instance_info['instance_id'], all_nodes=all_nodes, edge_list=edge_list,
                                lt_dict=lt_dict, qty_dict=qty_dict,
                                hc_dict=hc_dict, sla_dict=sla_dict,
@@ -160,19 +147,6 @@ def load_instance_from_csv(data_dir):
                                tau=float(instance_info['tau']),
                                pooling_factor=int(instance_info['pooling_factor']))
     return gsm_instance
-
-
-def write_policy_to_pickle(policy, data_dir):
-    if not os.path.exists(data_dir):
-        os.mkdir(data_dir)
-    with open(data_dir + 'policy.pkl', 'wb') as f:
-        pickle.dump(policy, f)
-
-
-def load_policy_from_pickle(data_dir):
-    with open(data_dir + 'policy.pkl', 'rb') as f:
-        policy = pickle.load(f)
-    return policy
 
 
 def write_policy_to_csv(policy, data_dir):
