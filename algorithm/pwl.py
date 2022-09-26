@@ -1,14 +1,7 @@
-import gurobipy as gp
-from gurobipy import GRB
-import coptpy as cp
-from coptpy import COPT
-import pyomo.environ as pyo
-import pyomo.opt as pyopt
-from utils.copt_pyomo import *
+from default_paras import TIME_UNIT, OPT_GAP, TIME_LIMIT
+from domain.policy import Policy
 from utils.gsm_utils import *
 from utils.utils import *
-from domain.policy import Policy
-from default_paras import TIME_UNIT, OPT_GAP, TIME_LIMIT
 
 
 class PieceWiseLinear:
@@ -101,6 +94,8 @@ class PieceWiseLinear:
         self.br_dict = br_dict
 
     def pwl_grb(self):
+        import gurobipy as gp
+        from gurobipy import GRB
         jt_list = list(self.ar_dict.keys())
         jt_dict = {j: list(range(0, int(self.cum_lt_dict[j]) + 1)) for j in self.all_nodes}
 
@@ -158,6 +153,8 @@ class PieceWiseLinear:
             raise Exception('Solution has not been found')
 
     def pwl_copt(self):
+        import coptpy as cp
+        from coptpy import COPT
         jt_list = list(self.ar_dict.keys())
         jt_dict = {j: list(range(0, int(self.cum_lt_dict[j]) + 1)) for j in self.all_nodes}
 
@@ -218,6 +215,8 @@ class PieceWiseLinear:
             raise Exception('Solution has not been found')
 
     def pwl_pyomo(self, pyo_solver):
+        import pyomo.environ as pyo
+        import pyomo.opt as pyopt
         jt_list = list(self.ar_dict.keys())
         jt_dict = {j: list(range(0, int(self.cum_lt_dict[j]) + 1)) for j in self.all_nodes}
 

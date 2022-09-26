@@ -2,6 +2,7 @@ import datetime
 from typing import Optional
 from copy import copy
 import pandas as pd
+import os
 from algorithm.pwl import PieceWiseLinear
 from algorithm.hgna import HeuristicGeneralNetworksAlgorithm
 from algorithm.ds import DynamicSloping
@@ -67,6 +68,8 @@ class Task:
         self.task_info = task_info
 
     def write_to_csv(self, data_dir):
+        if not os.path.exists(data_dir):
+            os.mkdir(data_dir)
         sol_list = [(node, self.policy.sol_S[node], self.policy.sol_SI[node], self.policy.sol_CT[node])
                     for node in self.policy.all_nodes]
         sol_df = pd.DataFrame(sol_list, columns=['node_id', 'S', 'SI', 'CT'])

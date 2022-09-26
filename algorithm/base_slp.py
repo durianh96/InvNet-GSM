@@ -1,15 +1,9 @@
-import gurobipy as gp
-from gurobipy import GRB
-import coptpy as cp
-from coptpy import COPT
-import pyomo.environ as pyo
-import pyomo.opt as pyopt
-import random
 import copy
-from utils.copt_pyomo import *
+import random
+
+from default_paras import TERMINATION_PARM, OPT_GAP, MAX_ITER_NUM
 from utils.gsm_utils import *
 from utils.utils import *
-from default_paras import TERMINATION_PARM, OPT_GAP, MAX_ITER_NUM
 
 
 class BaseSLP:
@@ -85,6 +79,8 @@ class BaseSLP:
                     return step_sol
 
     def slp_step_grb(self, obj_para):
+        import gurobipy as gp
+        from gurobipy import GRB
         m = gp.Model('slp_step')
         # adding variables
         S = m.addVars(self.all_nodes, vtype=GRB.CONTINUOUS, lb=0)
@@ -131,6 +127,8 @@ class BaseSLP:
             raise Exception('Solution has not been found')
 
     def slp_step_copt(self, obj_para):
+        import coptpy as cp
+        from coptpy import COPT
         env = cp.Envr()
         m = env.createModel('slp_step')
         # adding variables
@@ -179,6 +177,9 @@ class BaseSLP:
             raise Exception('Solution has not been found')
 
     def slp_step_pyomo(self, obj_para, pyo_solver):
+        import pyomo.environ as pyo
+        import pyomo.opt as pyopt
+
         m = pyo.ConcreteModel('slp_step')
         # adding variables
         m.S = pyo.Var(self.all_nodes, domain=pyo.NonNegativeReals)

@@ -1,9 +1,3 @@
-import gurobipy as gp
-from gurobipy import GRB
-import coptpy as cp
-from coptpy import COPT
-import pyomo.environ as pyo
-import pyomo.opt as pyopt
 from utils.copt_pyomo import *
 from utils.gsm_utils import *
 from utils.utils import *
@@ -82,6 +76,8 @@ class DynamicSloping:
             return policy
 
     def dynamic_sloping_step_grb(self, a_k):
+        import gurobipy as gp
+        from gurobipy import GRB
         m = gp.Model('ds_step')
 
         # adding variables
@@ -120,6 +116,8 @@ class DynamicSloping:
             raise Exception('Solution has not been found')
 
     def dynamic_sloping_step_copt(self, a_k):
+        import coptpy as cp
+        from coptpy import COPT
         env = cp.Envr()
         model = env.createModel('ds_step')
 
@@ -159,6 +157,8 @@ class DynamicSloping:
         return sol_k
 
     def dynamic_sloping_pyomo(self, a_k, pyo_solver):
+        import pyomo.environ as pyo
+        import pyomo.opt as pyopt
         m = pyo.ConcreteModel('ds_step')
         # adding variables
         m.S = pyo.Var(self.all_nodes, domain=pyo.NonNegativeReals)

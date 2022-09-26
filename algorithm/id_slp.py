@@ -1,6 +1,5 @@
 from algorithm.dp import DynamicProgramming
 from algorithm.base_slp import *
-from utils.copt_pyomo import *
 from utils.gsm_utils import *
 from utils.utils import *
 from domain.policy import Policy

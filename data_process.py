@@ -2,6 +2,7 @@ from typing import Optional
 import numpy as np
 import pandas as pd
 import pickle
+import os
 from utils.graph_algorithm_utils import *
 from domain.graph import DiGraph
 from domain.gsm import GSMInstance
@@ -95,6 +96,8 @@ def generate_gsm_instance(graph,
 
 
 def write_instance_to_pickle(gsm_instance, data_dir):
+    if not os.path.exists(data_dir):
+        os.mkdir(data_dir)
     with open(data_dir + 'gsm_instance.pkl', 'wb') as f:
         pickle.dump(gsm_instance, f)
 
@@ -106,6 +109,8 @@ def load_instance_from_pickle(data_dir):
 
 
 def write_instance_to_csv(gsm_instance, data_dir):
+    if not os.path.exists(data_dir):
+        os.mkdir(data_dir)
     edge_qty_list = [(u, v, qty) for (u, v), qty in
                      gsm_instance.qty_dict.items()]
     edge_df = pd.DataFrame(edge_qty_list, columns=['pred', 'succ', 'quantity'])
@@ -158,6 +163,8 @@ def load_instance_from_csv(data_dir):
 
 
 def write_policy_to_pickle(policy, data_dir):
+    if not os.path.exists(data_dir):
+        os.mkdir(data_dir)
     with open(data_dir + 'policy.pkl', 'wb') as f:
         pickle.dump(policy, f)
 
@@ -169,6 +176,8 @@ def load_policy_from_pickle(data_dir):
 
 
 def write_policy_to_csv(policy, data_dir):
+    if not os.path.exists(data_dir):
+        os.mkdir(data_dir)
     sol_list = [(node, policy.sol_S[node], policy.sol_SI[node], policy.sol_CT[node]) for node in policy.all_nodes]
     sol_df = pd.DataFrame(sol_list, columns=['node_id', 'S', 'SI', 'CT'])
 

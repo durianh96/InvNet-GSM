@@ -1,14 +1,7 @@
-import gurobipy as gp
-from gurobipy import GRB
-import coptpy as cp
-from coptpy import COPT
-import pyomo.environ as pyo
-import pyomo.opt as pyopt
-from utils.copt_pyomo import *
+from default_paras import TERMINATION_PARM, OPT_GAP, MAX_ITER_NUM
+from domain.policy import Policy
 from utils.gsm_utils import *
 from utils.utils import *
-from domain.policy import Policy
-from default_paras import TERMINATION_PARM, OPT_GAP, MAX_ITER_NUM
 
 
 class IterativeMIP:
@@ -88,6 +81,8 @@ class IterativeMIP:
             return policy
 
     def imilp_step_grb(self, obj_para):
+        import gurobipy as gp
+        from gurobipy import GRB
         model = gp.Model('imilp_step')
 
         # adding variables
@@ -131,6 +126,8 @@ class IterativeMIP:
             raise Exception('Solution has not been found')
 
     def imilp_step_copt(self, obj_para):
+        import coptpy as cp
+        from coptpy import COPT
         env = cp.Envr()
         model = env.createModel('imilp_step')
 
@@ -176,6 +173,8 @@ class IterativeMIP:
             raise Exception("Solution has not been found within given time limit")
 
     def imilp_step_pyomo(self, obj_para, pyo_solver):
+        import pyomo.environ as pyo
+        import pyomo.opt as pyopt
         m = pyo.ConcreteModel('imilp_step')
         # adding variables
         m.S = pyo.Var(self.all_nodes, domain=pyo.NonNegativeReals)
