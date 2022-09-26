@@ -3,13 +3,13 @@ from typing import Optional
 from copy import copy
 import pandas as pd
 import os
-from algorithm.pwl import PieceWiseLinear
-from algorithm.hgna import HeuristicGeneralNetworksAlgorithm
-from algorithm.ds import DynamicSloping
-from algorithm.imip import IterativeMIP
-from algorithm.simple_slp import SimpleSLP
-from algorithm.if_slp import IterativeFixingSLP
-from algorithm.id_slp import IterativeDecompositionSLP
+from approach.pwl import PieceWiseLinear
+from approach.hgna import HeuristicGeneralNetworksAlgorithm
+from approach.ds import DynamicSloping
+from approach.imip import IterativeMIP
+from approach.simple_slp import SimpleSLP
+from approach.if_slp import IterativeFixingSLP
+from approach.id_slp import IterativeDecompositionSLP
 from default_paras import SOLVER
 
 _approach_map = {

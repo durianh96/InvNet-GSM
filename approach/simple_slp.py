@@ -1,6 +1,6 @@
 import multiprocess as mp
 from domain.policy import Policy
-from algorithm.base_slp import *
+from approach.base_slp import *
 from default_paras import TERMINATION_PARM, OPT_GAP, MAX_ITER_NUM, LOCAL_SOL_NUM
 
 

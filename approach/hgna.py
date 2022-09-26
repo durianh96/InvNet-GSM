@@ -1,5 +1,5 @@
 import math
-from algorithm.dp import DynamicProgramming
+from approach.dp import DynamicProgramming
 from utils.utils import *
 from utils.gsm_utils import *
 from data_process import *
