@@ -1,4 +1,4 @@
-# Inventory Network Optimization Lab
+# Inventory Network Optimization (InvNetOpt) Lab
 
 Optimizing inventory placement on a large-scale inventory network is challenging since it might involve massive nodes and many shared materials.
 
