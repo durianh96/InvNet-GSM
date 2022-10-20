@@ -12,8 +12,7 @@ Two critical issues that arise for inventory networks are:
 - how much to set
 
 The guaranteed service model (GSM) is one of the main approaches to optimizing network inventory policy.
-
-This library provides several approaches to optimizing network inventory policy to solve the guaranteed service model (GSM). 
+This library provides several approaches  to solve the GSM to optimize network inventory policy.
 Users can input GSM instances in the required format and then call approaches to optimize policy. 
 Or use our GSM instance generator to generate data for numerical tests.
 
