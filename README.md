@@ -1,4 +1,7 @@
-# Inventory Network Optimization (InvNetOpt) Lab
+# Inventory Network Optimization (InvNet) Lab
+
+If you encounter any significant bugs, then please contact [Diyuan Huang](huang.diyuan96@gmail.com).
+
 
 Optimizing inventory placement on a large-scale inventory network is challenging since it might involve massive nodes and many shared materials.
 
@@ -21,6 +24,7 @@ This library is based on our paper:
 
 This paper is a pre-print at present and has not yet been peer-reviewed. 
 
+
 Eight approaches of solving GSM are provided in this library: 
 
 - **Dynamic programming (DP)** from (Graves and Willems 2000).
@@ -42,7 +46,7 @@ Eight approaches of solving GSM are provided in this library:
 - **Simple sequential linear programming (Simple-SLP)** from (Huang et al. 2022).
   This approach use sequential linear programming (SLP) to find several local solutions and return the local solution with the least cost as the solution.
 - **Iterative fixing with sequential linear programming (IF-SLP)** from (Huang et al. 2022).
-  This approach search for local solutions using SLP and fix the variable values of stable nodes every \textit{stable finding iter} iterations.
+  This approach search for local solutions using SLP and fix the variable values of stable nodes every *stable finding iter* iterations.
 
 - **Iterative decomposition with sequential linear programming (ID-SLP)** from (Huang et al. 2022).
   This approach exploits information about local solutions to iteratively decompose the large-scale network into small sub-networks. It combines the fast local solution-finding algorithm, sequential linear programming, with dynamic programming, the optimal algorithm for tree problems. Numerical results show that this approach performs better than above approaches, especially when the network is large and its structure is complex. 
