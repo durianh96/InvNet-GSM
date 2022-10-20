@@ -1,7 +1,13 @@
-# Large-scale Inventory Networks Optimizing Based on the Guaranteed Service Model
+# Inventory Network Optimization Lab
 
-Optimizing inventory policy on a large-scale inventory network is challenging since it might involve massive nodes and many shared materials.
-Two critical issues are: 
+Optimizing inventory placement on a large-scale inventory network is challenging since it might involve massive nodes and many shared materials.
+
+From a structural perspective, a supply chain can be viewed as a collection of connected facilities, ranging from suppliers' warehouses,factories, and distribution centers to the end sales channels. The flow of materials through these facilities can be modeled as an inventory network. The material at each facility is a potential inventory stocking node, and the transportation and assembly relationships are directed edges. In practice, the inventory network is complex and usually not a simple linear or tree structure, especially when the production process is incorporated in the network, because this process often has a large number of components, and many of these are shared to produce different assemblies.
+
+![Prototype of an inventory
+network](pics/inventory_network.png)
+
+Two critical issues that arise for inventory networks are:
 - choosing which nodes to place inventory 
 - how much to set
 
@@ -19,31 +25,34 @@ This paper is a pre-print at present and has not yet been peer-reviewed.
 Eight approaches of solving GSM are provided in this library: 
 
 - **Dynamic programming (DP)** from (Graves and Willems 2000).
-  This approach is built for tree networks, it takes advantage of the fact that each node in any tree can be labeled with unique indices such that every node except one has at most one adjacent node with an index higher than its own. 
-  This approach can find the optimal solution for assembly and distribution problems with tree structure. 
-- **Heuristic general networks algorithm (HGNA)** from (Humair and Willems 2011)
-  This paper combines the above DP algorithm with a branch-and-bound scheme and provides an exact solution approach called **general networks algorithms (GNA)**. 
-  GNA can find optimal solutions on general networks, but it takes a long time to find the solution for large-scale problems (a 2,025-nodes problem takes 577,190.78 seconds to find the optimal solution in their paper). 
-  They provide two faster heuristics: **HGNA** and **TGNA**. HGNA is motivated by the structure of the formulation's dual space, whereas TGNA simply terminates the optimization algorithm after a fixed number of iterations.
-  We found that HGNA takes a long time to converge on large-scale problems but performs better than TGNA. 
-  We add a parameter *max iter num* to terminate the HGNA after a fixed number of iterations like TGNA. 
-  Note that HGNA is based on a modified form of the DP algorithm. In fact, when the network is a tree, HGNA runs the above DP algorithm. That is, HGNA finds the optimal solution for the tree structure problem.
-- **Piecewise linear approximation (PWL)** from (Magnanti et al. 2006)
-  This approach uses piecewise linear functions to approximate the objective function of GSM. Doing that turns the original GSM into a mixed integer programming problem and can be solved with a MIP solver.
-- **Dynamic sloping (DS)** and **iterative mixed integer programming (IMIP)** from (Shu and Karimi 2009). The first uses continuous approximation, while the second employs a two-piece linear approximation to approximate the concave objective function. 
-- **Simple sequential linear programming (Simple-SLP)** from "(Huang et al. 2022)".
-  This approach use sequential linear programming to find several local solutions and return the local solution with the least cost as the solution.
+  This approach was designed for tree networks; it takes advantage of the fact that in any tree, each node can be labeled with a unique index such that every node except one has at most one adjacent node with an index higher than its own. DP can find the optimal solution for assembly and distribution problems that have a tree structure.
+
+- **Piecewise linear approximation (PWL)** from (Magnanti et al. 2006).
+  This approach uses piecewise linear functions to approximate the GSM's objective function. This turns the original GSM into a mixed integer programming (MIP) problem that can be solved with an MIP solver.
+
+- **Dynamic sloping (DS)** and **iterative mixed integer programming (IMIP)** from (Shu and Karimi 2009). 
+  This paper provides two efficient iterative heuristics, DS and IMIP. The DS uses continuous approximation, while the IMIP employs a two-piece linear approximation to approximate the concave objective function. Accordingly, the DS needs to solve a linear problem and the IMIP needs to solve a MIP problem iteratively. In their numerical studies, the IMIP outperforms the DS in solution quality consistently and the latter outperforms the former in solution speed consistently. A noteworthy feature of these two approaches is that the quality of solutions does not deteriorate with an increase in network size.
+  
+- **Heuristic general networks algorithm (HGNA)** from (Humair and Willems 2011).
+  This paper combines the DP algorithm with a branch-and-bound scheme and provides an exact solution approach called the **general networks algorithm (GNA)**.
+  GNA can find optimal solutions for general networks, but takes a long time to find the solution for large-scale problems (the authors provide an example 2,025-node problem that takes 577,190.78 seconds to find the optimal solution). The authors also provide two faster heuristics: **HGNA** and **TGNA**. 
+  HGNA is motivated by the structure of the formulation's dual space, whereas TGNA simply terminates the optimization algorithm after a fixed number of iterations. We found that HGNA takes a long time to converge on large-scale problems but performs better than TGNA. We add a parameter *max iter num* to terminate HGNA after a fixed number of iterations, like TGNA.
+
+  Note that HGNA is based on a modified form of the DP algorithm. When the network is a tree, HGNA runs the DP algorithm. 
+
+- **Simple sequential linear programming (Simple-SLP)** from (Huang et al. 2022).
+  This approach use sequential linear programming (SLP) to find several local solutions and return the local solution with the least cost as the solution.
 - **Iterative fixing with sequential linear programming (IF-SLP)** from (Huang et al. 2022).
-  Similar to the Simple-SLP, in each round search for the local solution, this approach fix the variable values of stable nodes every *stable finding iter* iterations.
+  This approach search for local solutions using SLP and fix the variable values of stable nodes every \textit{stable finding iter} iterations.
+
 - **Iterative decomposition with sequential linear programming (ID-SLP)** from (Huang et al. 2022).
-  This approach uses local solutions to decompose the large-scale graph into small sub-graphs iteratively. It combines the fast local solution-finding approach, SLP, with the optimal approach for tree problems (dynamic programming). Numerical results show that this approach performs best especially when the graph size is large and the graph structure is complex. 
+  This approach exploits information about local solutions to iteratively decompose the large-scale network into small sub-networks. It combines the fast local solution-finding algorithm, sequential linear programming, with dynamic programming, the optimal algorithm for tree problems. Numerical results show that this approach performs better than above approaches, especially when the network is large and its structure is complex. 
 
 We recommend the users to (Graves and Willems 2000), (Eruguz et al. 2016) and (Huang et al. 2022) for more details about the basics of GSM and descriptions of these approaches.
 
 ## GSM Instance: generating, saving and loading
 
-One GSM instance contains a graph, all edges' proportions, and all nodes' properties related to GSM, including demand function, holding cost rate, lead time, and service time requirement for demand node.
-We break the generation process into two parts: graph generation and properties generation.
+A GSM instance contains a graph, the proportions for all edges, and all nodes' properties related to GSM, including the demand functions, holding costs,lead times, and service time requirements for demand nodes. We break down the generation process into two parts: graph generation and property generation.
 
 We highly recommend generating related data at least once to understand how to prepare their own instance for users who want to import their self-data.
 
