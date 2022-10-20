@@ -85,7 +85,7 @@ Third, we generate related properties of GSM on a given graph. Users need to spe
 
 - Edge proportion range: *qty lb* and *qty ub*.
 - Lead time range: *lt lb* and *lt ub*.
-- Holding cost rate range: *hc lb* and *hc ub*.
+- Holding cost: *hc lb* and *hc ub*.
 - Service time requirement range parameters: *sla lt lb* and *sla lt ub*.
 - Demand mean range: *mu lb* and *mu ub*.
 - Demand standard deviation range: *sigma lb* and *sigma ub*.
@@ -239,7 +239,7 @@ edge_df.head()
 'node.csv' provides the properties of nodes in the graph. It contains six columns:
 - *node_id*: the unique index of the node.
 - *lt*: the lead time of the node.
-- *hc*: the holding cost rate of the node.
+- *hc*: the holding cost of the node.
 - *sla*: the service time requirement of the node.
 - *mu*: the mean of the node's demand for each period.
 - *sigma*: the std of the node's demand for each period.
