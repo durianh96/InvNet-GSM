@@ -1,71 +1,76 @@
-from approach.base_slp import *
-from domain.policy import Policy
-from default_paras import TERMINATION_PARM, OPT_GAP, MAX_ITER_NUM, LOCAL_SOL_NUM, STABLE_FINDING_ITER, \
-    STABILITY_THRESHOLD
+from gsm.gsm_solving_approach.base_slp import *
+from gsm.gsm_sol import *
+from gsm.gsm_solving_approach.solving_default_paras import TERMINATION_PARM, OPT_GAP, MAX_ITER_NUM, LOCAL_SOL_NUM, \
+    STABLE_FINDING_ITER, STABILITY_TYPE, STABILITY_THRESHOLD
+import copy
 
 
 class IterativeFixingSLP(BaseSLP):
-    def __init__(self, gsm_instance, termination_parm=TERMINATION_PARM, opt_gap=OPT_GAP, max_iter_num=MAX_ITER_NUM,
-                 local_sol_num=LOCAL_SOL_NUM, stable_finding_iter=STABLE_FINDING_ITER,
-                 stability_threshold=STABILITY_THRESHOLD):
-        super().__init__(gsm_instance, termination_parm, opt_gap, max_iter_num)
+    def __init__(self, gsm_instance: GSMInstance,
+                 termination_parm=TERMINATION_PARM,
+                 opt_gap=OPT_GAP,
+                 max_iter_num=MAX_ITER_NUM,
+                 bound_value_type=BOUND_VALUE_TYPE,
+                 local_sol_num=LOCAL_SOL_NUM,
+                 stable_finding_iter=STABLE_FINDING_ITER,
+                 stability_type=STABILITY_TYPE,
+                 stability_threshold=STABILITY_THRESHOLD,
+                 ):
+        super().__init__(gsm_instance, termination_parm, opt_gap, max_iter_num, bound_value_type)
         self.local_sol_num = local_sol_num
         self.stable_finding_iter = stable_finding_iter
+        self.stability_type = stability_type
         self.stability_threshold = stability_threshold
 
         self.need_solver = True
 
     @timer
     def get_policy(self, solver):
-        best_sol = self.get_slp_sol(solver)
-        bs_dict = {node: self.db_func[node](best_sol['CT'][node]) for node in self.all_nodes}
-        ss_dict = {node: self.vb_func[node](best_sol['CT'][node]) for node in self.all_nodes}
-        method = 'IF-SLP_' + solver
-        cost = cal_cost(self.hc_dict, ss_dict, method=method)
+        if self.stability_type == 'kl' or 'cn':
+            self.gsm_sol_set.init_beta_para()
 
-        policy = Policy(self.all_nodes)
-        policy.update_sol(best_sol)
-        policy.update_base_stock(bs_dict)
-        policy.update_safety_stock(ss_dict)
-        policy.update_ss_cost(cost)
-        return policy
-
-    def get_slp_sol(self, solver):
-        nodes_info = {'fix_S_nodes': set(), 'fix_SI_nodes': set(), 'fix_CT_nodes': set(),
-                      'completely_fix_nodes': set(), 'completely_free_nodes': self.all_nodes,
-                      'partially_free_nodes': self.all_nodes,
-                      'solely_fix_S_nodes': set(), 'free_S_nodes': self.all_nodes,
-                      'solely_fix_SI_nodes': set(), 'free_SI_nodes': self.all_nodes,
-                      'solely_fix_CT_nodes': set(), 'free_CT_nodes': self.all_nodes,
-                      'fix_S': {}, 'fix_SI': {}, 'fix_CT': {},
-                      'completely_fix_S': {}, 'completely_fix_SI': {}, 'completely_fix_CT': {}}
+        local_sol_info = self.gsm_sol_set.get_local_sol_info(self.stability_type, self.stability_threshold)
         for i in range(self.local_sol_num):
-            init_CT = {j: float(random.randint(1, 150)) for j in self.all_nodes}
-            init_CT.update(nodes_info['completely_fix_CT'])
-            self.run_one_instance_completely_fix(init_CT, nodes_info, solver)
-            if len(self.results) > 0:
-                if len(self.results) % self.stable_finding_iter == 0:
-                    nodes_info = self.get_nodes_info(self.stability_threshold)
-        best_sol = self.output_results()
-        return best_sol
+            init_CT = {j: float(random.randint(1, 150)) for j in self.nodes}
+            init_CT.update(local_sol_info['completely_fix_CT'])
+            self.run_once_completely_fix(init_CT, local_sol_info, solver)
+            if len(self.gsm_sol_set.gsm_sols) % self.stable_finding_iter == 0:
+                local_sol_info = self.gsm_sol_set.get_local_sol_info(self.stability_type, self.stability_threshold)
 
-    def run_one_instance_completely_fix(self, init_CT, nodes_info, solver):
+        if_slp_sol = self.gsm_sol_set.get_best_local_sol()
+
+        oul_of_node = {node: self.get_db_value_of_node(node, if_slp_sol.CT_of_node[node]) for node in self.nodes}
+        ss_of_node = {node: self.get_vb_value_of_node(node, if_slp_sol.CT_of_node[node]) for node in self.nodes}
+        method = 'IF-SLP_' + solver + '_' + self.stability_type
+        ss_cost = cal_ss_cost(self.hc_of_node, ss_of_node, method=method)
+
+        if_slp_sol.update_oul(oul_of_node)
+        if_slp_sol.update_ss(ss_of_node)
+        if_slp_sol.update_ss_cost(ss_cost)
+        return if_slp_sol
+
+    def run_once_completely_fix(self, init_CT, local_sol_info, solver):
         CT_step = copy.copy(init_CT)
         obj_value = [0]
         for i in range(self.max_iter_num):
             step_obj_para = self.cal_para(CT_step)
             if solver == 'GRB':
-                step_sol = self.slp_step_completely_fix_grb(step_obj_para, nodes_info)
+                step_sol = self.slp_step_completely_fix_grb(step_obj_para, local_sol_info)
             elif solver == 'COPT':
-                step_sol = self.slp_step_completely_fix_copt(step_obj_para, nodes_info)
+                step_sol = self.slp_step_completely_fix_copt(step_obj_para, local_sol_info)
             elif solver == 'PYO_COPT':
-                step_sol = self.slp_step_completely_fix_pyomo(step_obj_para, nodes_info, pyo_solver='COPT')
+                step_sol = self.slp_step_completely_fix_pyomo(step_obj_para, local_sol_info, pyo_solver='COPT')
             elif solver == 'PYO_GRB':
-                step_sol = self.slp_step_completely_fix_pyomo(step_obj_para, nodes_info, pyo_solver='GRB')
+                step_sol = self.slp_step_completely_fix_pyomo(step_obj_para, local_sol_info, pyo_solver='GRB')
             elif solver == 'PYO_CBC':
-                step_sol = self.slp_step_completely_fix_pyomo(step_obj_para, nodes_info, pyo_solver='CBC')
+                step_sol = self.slp_step_completely_fix_pyomo(step_obj_para, local_sol_info, pyo_solver='CBC')
+            elif solver == 'PYO_SCIP':
+                step_sol = self.slp_step_completely_fix_pyomo(step_obj_para, local_sol_info, pyo_solver='SCIP')
+            elif solver == 'PYO_GLPK':
+                step_sol = self.slp_step_completely_fix_pyomo(step_obj_para, local_sol_info, pyo_solver='GLPK')
             else:
                 raise AttributeError('undefined solver')
+
             obj_value.append(step_sol['obj_value'])
             CT_step = step_sol['CT']
             if (i > 0) and (abs(obj_value[i - 1] - obj_value[i]) <= self.termination_parm):
@@ -74,8 +79,13 @@ class IterativeFixingSLP(BaseSLP):
                     logger.error(error_sol)
                     return
                 else:
-                    self.results.append(step_sol)
-                    return step_sol
+                    once_if_slp_sol = GSMSolution(nodes=self.nodes)
+                    once_if_slp_sol.update_sol(step_sol)
+                    once_if_slp_sol.update_ss_cost(step_sol['obj_value'])
+                    if self.stability_type == 'cv':
+                        self.gsm_sol_set.add_one_sol(once_if_slp_sol)
+                    else:
+                        self.gsm_sol_set.add_one_sol(once_if_slp_sol, update_beta=True)
 
     def slp_step_completely_fix_grb(self, obj_para, nodes_info):
         import gurobipy as gp
@@ -87,13 +97,13 @@ class IterativeFixingSLP(BaseSLP):
         CT = m.addVars(nodes_info['partially_free_nodes'], vtype=GRB.CONTINUOUS, lb=0)
 
         # covering time
-        m.addConstrs((CT[j] == SI[j] + self.lt_dict[j] - S[j] for j in nodes_info['partially_free_nodes']))
+        m.addConstrs((CT[j] == SI[j] + self.lt_of_node[j] - S[j] for j in nodes_info['partially_free_nodes']))
         # sla
         m.addConstrs(
-            (S[j] <= int(self.sla_dict[j]) for j in self.demand_nodes if j in nodes_info['partially_free_nodes']))
+            (S[j] <= int(self.sla_of_node[j]) for j in self.sinks if j in nodes_info['partially_free_nodes']))
 
         # si >= s
-        m.addConstrs((SI[succ] - S[pred] >= 0 for (pred, succ) in self.edge_list if
+        m.addConstrs((SI[succ] - S[pred] >= 0 for (pred, succ) in self.edges if
                       (succ in nodes_info['partially_free_nodes']) and (pred in nodes_info['partially_free_nodes'])))
 
         m.setObjective(gp.quicksum(obj_para['A'][node] * CT[node] + obj_para['B'][node]
@@ -111,7 +121,7 @@ class IterativeFixingSLP(BaseSLP):
             step_sol['SI'].update(nodes_info['completely_fix_SI'])
             step_sol['CT'].update(nodes_info['completely_fix_CT'])
             step_sol['obj_value'] = sum(
-                [self.hc_dict[node] * self.vb_func[node](step_sol['CT'][node]) for node in self.all_nodes])
+                [self.hc_of_node[node] * self.get_vb_value_of_node(node, step_sol['CT'][node]) for node in self.nodes])
             return step_sol
         elif m.status == GRB.INFEASIBLE:
             m.computeIIS()
@@ -136,13 +146,13 @@ class IterativeFixingSLP(BaseSLP):
         CT = m.addVars(nodes_info['partially_free_nodes'], vtype=COPT.CONTINUOUS, lb=0)
 
         # covering time
-        m.addConstrs((CT[j] == SI[j] + self.lt_dict[j] - S[j] for j in nodes_info['partially_free_nodes']))
+        m.addConstrs((CT[j] == SI[j] + self.lt_of_node[j] - S[j] for j in nodes_info['partially_free_nodes']))
         # sla
         m.addConstrs(
-            (S[j] <= int(self.sla_dict[j]) for j in self.demand_nodes if j in nodes_info['partially_free_nodes']))
+            (S[j] <= int(self.sla_of_node[j]) for j in self.sinks if j in nodes_info['partially_free_nodes']))
 
         # si >= s
-        m.addConstrs((SI[succ] - S[pred] >= 0 for (pred, succ) in self.edge_list if
+        m.addConstrs((SI[succ] - S[pred] >= 0 for (pred, succ) in self.edges if
                       (succ in nodes_info['partially_free_nodes']) and (pred in nodes_info['partially_free_nodes'])))
 
         m.setObjective(cp.quicksum(obj_para['A'][node] * CT[node] + obj_para['B'][node]
@@ -160,7 +170,7 @@ class IterativeFixingSLP(BaseSLP):
             step_sol['SI'].update(nodes_info['completely_fix_SI'])
             step_sol['CT'].update(nodes_info['completely_fix_CT'])
             step_sol['obj_value'] = sum(
-                [self.hc_dict[node] * self.vb_func[node](step_sol['CT'][node]) for node in self.all_nodes])
+                [self.hc_of_node[node] * self.get_vb_value_of_node(node, step_sol['CT'][node]) for node in self.nodes])
             return step_sol
         elif m.status == COPT.INFEASIBLE:
             raise Exception('Infeasible model')
@@ -176,7 +186,7 @@ class IterativeFixingSLP(BaseSLP):
             logger.error('Error status is ', m.status)
             raise Exception('Solution has not been found')
 
-    def slp_step_completely_fix_pyomo(self, obj_para, nodes_info, pyo_solver):
+    def slp_step_completely_fix_pyomo(self, obj_para, nodes_info, pyo_solver='GRB'):
         import pyomo.environ as pyo
         import pyomo.opt as pyopt
         m = pyo.ConcreteModel('slp_step_completely_fix')
@@ -188,14 +198,14 @@ class IterativeFixingSLP(BaseSLP):
         # constraints
         m.constrs = pyo.ConstraintList()
         for j in nodes_info['partially_free_nodes']:
-            m.constrs.add(m.CT[j] == m.SI[j] + self.lt_dict[j] - m.S[j])
+            m.constrs.add(m.CT[j] == m.SI[j] + self.lt_of_node[j] - m.S[j])
         # sla
-        for j in self.demand_nodes:
+        for j in self.sinks:
             if j in nodes_info['partially_free_nodes']:
-                m.constrs.add(m.S[j] <= int(self.sla_dict[j]))
+                m.constrs.add(m.S[j] <= int(self.sla_of_node[j]))
 
         # si >= s
-        for pred, succ in self.edge_list:
+        for pred, succ in self.edges:
             if (succ in nodes_info['partially_free_nodes']) and (
                     pred in nodes_info['partially_free_nodes']):
                 m.constrs.add(m.SI[succ] - m.S[pred] >= 0)
@@ -226,12 +236,17 @@ class IterativeFixingSLP(BaseSLP):
         step_sol['SI'].update(nodes_info['completely_fix_SI'])
         step_sol['CT'].update(nodes_info['completely_fix_CT'])
         step_sol['obj_value'] = sum(
-            [self.hc_dict[node] * self.gsm_instance.vb_func[node](step_sol['CT'][node]) for node in self.all_nodes])
+            [self.hc_of_node[node] * self.get_vb_value_of_node(node, step_sol['CT'][node]) for node in self.nodes])
 
         return step_sol
 
     def get_approach_paras(self):
-        paras = {'termination_parm': self.termination_parm, 'opt_gap': self.opt_gap, 'max_iter_num': self.max_iter_num,
-                 'local_sol_num': self.local_sol_num, 'stable_finding_iter': self.stable_finding_iter,
+        paras = {'termination_parm': self.termination_parm,
+                 'opt_gap': self.opt_gap,
+                 'max_iter_num': self.max_iter_num,
+                 'bound_value_type': self.bound_value_type,
+                 'local_sol_num': self.local_sol_num,
+                 'stable_finding_iter': self.stable_finding_iter,
+                 'stability_type': self.stability_type,
                  'stability_threshold': self.stability_threshold}
         return paras
