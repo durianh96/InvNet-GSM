@@ -1,6 +1,6 @@
 # Inventory Network Optimization (InvNet) GSM-Lab
 
-This library is part of an open source project called InvNet(to add link), and it is based on our paper:
+This library is part of an open source project called [InvNet](https://durianh96.github.io/InvNet-website/), and it is based on our paper:
 
 - Huang D, Yu J, Yang C, Optimizing large-scale inventory networks: An iterative decomposition approach (Revision at EJOR).
 
