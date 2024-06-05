@@ -12,6 +12,9 @@ class GSMSolution:
         self.oul_of_node = {node: None for node in nodes}
         self.ss_of_node = {node: None for node in nodes}
         self.ss_cost = None
+    
+    def collect_sol_set(self, sol_set):
+        self.sol_set = sol_set
 
     def update_sol(self, sol):
         self.S_of_node.update(sol['S'])
@@ -103,17 +106,17 @@ class GSMSolutionSet:
         fix_CT = {}
         for node in self.nodes:
             if node in stationary_S_node:
-                fix_S[node] = float(round(S_mean_of_node[node], 2))
+                fix_S[node] = float(round(S_mean_of_node[node]))
                 if node in stationary_SI_node:
-                    fix_SI[node] = float(round(SI_mean_of_node[node], 2))
-                    fix_CT[node] = fix_SI[node] + self.lt_of_node[node] - fix_S[node]
+                    fix_SI[node] = float(round(SI_mean_of_node[node]))
+                    fix_CT[node] = max(fix_SI[node] + self.lt_of_node[node] - fix_S[node], 0)
                 elif node in stationary_CT_node:
-                    fix_CT[node] = float(round(CT_mean_of_node[node], 2))
+                    fix_CT[node] = float(round(CT_mean_of_node[node]))
                     fix_SI[node] = fix_CT[node] + fix_S[node] - self.lt_of_node[node]
             elif node in stationary_SI_node:
-                fix_SI[node] = float(round(SI_mean_of_node[node], 2))
+                fix_SI[node] = float(round(SI_mean_of_node[node]))
                 if node in stationary_CT_node:
-                    fix_CT[node] = float(round(CT_mean_of_node[node], 2))
+                    fix_CT[node] = float(round(CT_mean_of_node[node]))
                     fix_S[node] = fix_SI[node] + self.lt_of_node[node] - fix_CT[node]
 
         fix_S_nodes = set(fix_S.keys())
@@ -268,8 +271,10 @@ def check_solution_feasibility(gsm_instance, sol, error_tol=1e-3):
                 error_sol.append(['sla_error', 'node:' + str(node), 'sla:' + str(gsm_instance.sla_of_node[node]),
                                   'S:' + str(S_dict[node]), 'SI:' + str(SI_dict[node]), 'CT:' + str(CT_dict[node])])
 
+        # todo: add
         # Si - SIi <= Li for all nodes
-        if abs(CT_dict[node] - (SI_dict[node] + lt_dict[node] - S_dict[node])) > error_tol:
+        if (abs(CT_dict[node] - (SI_dict[node] + lt_dict[node] - S_dict[node])) > error_tol) \
+            & (SI_dict[node] + lt_dict[node] - S_dict[node] > 0) :
             error_sol.append(['ct_error', 'node:' + str(node), 'lt:' + str(lt_dict[node]), 'S:' + str(S_dict[node]),
                               'SI:' + str(SI_dict[node]), 'CT:' + str(CT_dict[node])])
 
@@ -279,4 +284,5 @@ def check_solution_feasibility(gsm_instance, sol, error_tol=1e-3):
                 if SI_dict[succ] - S_dict[node] < - error_tol:
                     error_sol.append(['link_error', 'pred:' + str(node), 'node_S:' + str(S_dict[node]),
                                       'succ:' + str(succ), 'succ_SI:' + str(SI_dict[succ])])
-        return error_sol
+    
+    return error_sol

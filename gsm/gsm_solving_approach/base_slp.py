@@ -3,6 +3,7 @@ from gsm.gsm_solving_approach.solving_default_paras import TERMINATION_PARM, OPT
     BOUND_VALUE_TYPE
 from gsm.gsm_sol import *
 from utils.system_utils import *
+from utils.graph_algorithms import *
 from gsm.gsm_instance import GSMInstance
 from typing import Optional
 
@@ -18,6 +19,7 @@ class BaseSLP:
         self.gsm_instance = gsm_instance
         self.nodes = gsm_instance.nodes
         self.edges = gsm_instance.edges
+        self.roots = gsm_instance.roots
         self.sinks = gsm_instance.sinks
 
         self.succs_of_node = gsm_instance.succs_of_node
@@ -33,11 +35,14 @@ class BaseSLP:
         self.opt_gap = opt_gap
         self.max_iter_num = max_iter_num
         self.bound_value_type = bound_value_type
-
+        
         if input_s_ub_dict is None:
             self.s_ub_dict = {}
         else:
             self.s_ub_dict = input_s_ub_dict
+            # update upper bound for sub-instance
+            self.sla_of_node.update({node: s_ub for node, s_ub in self.s_ub_dict.items()
+                                     if node in self.sinks})        
         if input_si_lb_dict is None:
             self.si_lb_dict = {}
         else:
@@ -83,7 +88,7 @@ class BaseSLP:
         return obj_para
 
     def get_one_random_sol(self, solver):
-        CT_step = {j: float(random.randint(1, 150)) for j in self.nodes}
+        CT_step = {j: float(random.randint(1, 50)) for j in self.nodes}
         obj_value = [0]
         for i in range(self.max_iter_num):
             step_obj_para = self.cal_para(CT_step)
@@ -106,6 +111,7 @@ class BaseSLP:
 
             obj_value.append(step_sol['obj_value'])
             CT_step = step_sol['CT']
+
             if (i > 0) and (abs(obj_value[i - 1] - obj_value[i]) <= self.termination_parm):
                 error_sol = check_solution_feasibility(self.gsm_instance, step_sol)
                 if len(error_sol) > 0:
@@ -116,11 +122,18 @@ class BaseSLP:
                     once_slp_sol.update_sol(step_sol)
                     once_slp_sol.update_ss_cost(step_sol['obj_value'])
                     return once_slp_sol
-
+    
+    # parallel implementation
+    def get_multiple_random_sol(self, solver, multi_num, gsm_sol_pool):
+        for _ in range(multi_num):
+            sol = self.get_one_random_sol(solver)
+            gsm_sol_pool.append(sol)
+    
     def slp_step_grb(self, obj_para):
         import gurobipy as gp
         from gurobipy import GRB
         m = gp.Model('slp_step')
+
         # adding variables
         S = m.addVars(self.nodes, vtype=GRB.CONTINUOUS, lb=0)
         SI = m.addVars(self.nodes, vtype=GRB.CONTINUOUS, lb=0)
@@ -149,11 +162,11 @@ class BaseSLP:
         m.optimize()
 
         if m.status == GRB.OPTIMAL:
-            step_sol = {'S': {node: float(S[node].x) for node in self.nodes},
-                        'SI': {node: float(SI[node].x) for node in self.nodes},
-                        'CT': {node: float(CT[node].x) for node in self.nodes}}
+            step_sol = {'S': {node: float(round(S[node].x)) for node in self.nodes},
+                        'SI': {node: float(round(SI[node].x)) for node in self.nodes},
+                        'CT': {node: float(round(CT[node].x)) for node in self.nodes}}
             step_sol['obj_value'] = sum(
-                [self.hc_of_node[node] * self.get_vb_value_of_node(node, step_sol['CT'][node]) for node in self.nodes])
+                [self.hc_of_node[node] * self.get_vb_value_of_node(node, step_sol['CT'][node]) for node in self.nodes])            
             return step_sol
         elif m.status == GRB.INFEASIBLE:
             raise Exception('Infeasible model')
@@ -199,9 +212,9 @@ class BaseSLP:
         m.solve()
 
         if m.status == COPT.OPTIMAL:
-            step_sol = {'S': {node: float(S[node].x) for node in self.nodes},
-                        'SI': {node: float(SI[node].x) for node in self.nodes},
-                        'CT': {node: float(CT[node].x) for node in self.nodes}}
+            step_sol = {'S': {node: float(round(S[node].x)) for node in self.nodes},
+                        'SI': {node: float(round(SI[node].x)) for node in self.nodes},
+                        'CT': {node: float(round(CT[node].x)) for node in self.nodes}}
             step_sol['obj_value'] = sum(
                 [self.hc_of_node[node] * self.get_vb_value_of_node(node, step_sol['CT'][node]) for node in self.nodes])
             return step_sol

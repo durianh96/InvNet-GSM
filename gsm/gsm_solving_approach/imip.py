@@ -1,4 +1,4 @@
-from gsm.gsm_solving_approach.solving_default_paras import TERMINATION_PARM, OPT_GAP, MAX_ITER_NUM, BOUND_VALUE_TYPE
+from gsm.gsm_solving_approach.solving_default_paras import TERMINATION_PARM, OPT_GAP, MAX_ITER_NUM, TIME_LIMIT, BOUND_VALUE_TYPE
 from gsm.gsm_sol import *
 from utils.system_utils import *
 from gsm.gsm_instance import GSMInstance
@@ -8,6 +8,7 @@ class IterativeMIP:
     def __init__(self, gsm_instance: GSMInstance,
                  termination_parm=TERMINATION_PARM,
                  opt_gap=OPT_GAP,
+                 time_limit=TIME_LIMIT,
                  max_iter_num=MAX_ITER_NUM,
                  bound_value_type=BOUND_VALUE_TYPE):
         self.gsm_instance = gsm_instance
@@ -24,6 +25,7 @@ class IterativeMIP:
         self.termination_parm = termination_parm
         self.opt_gap = opt_gap
         self.max_iter_num = max_iter_num
+        self.time_limit = time_limit
         self.bound_value_type = bound_value_type
 
         self.need_solver = True
@@ -93,6 +95,7 @@ class IterativeMIP:
                 break
         sol = {'S': sol_k['S'], 'SI': sol_k['SI'], 'CT': sol_k['CT']}
         error_sol = check_solution_feasibility(self.gsm_instance, sol)
+            
         if len(error_sol) > 0:
             logger.error(error_sol)
             raise Exception
@@ -118,7 +121,7 @@ class IterativeMIP:
         import gurobipy as gp
         from gurobipy import GRB
         model = gp.Model('imilp_step')
-
+        model.setParam('TimeLimit', self.time_limit)
         # adding variables
         S = model.addVars(self.nodes, vtype=GRB.CONTINUOUS, lb=0)
         SI = model.addVars(self.nodes, vtype=GRB.CONTINUOUS, lb=0)
@@ -142,10 +145,10 @@ class IterativeMIP:
         model.optimize()
 
         if model.status == GRB.OPTIMAL:
-            sol_k = {'S': {node: float(S[node].x) for node in self.nodes},
-                     'SI': {node: float(SI[node].x) for node in self.nodes},
-                     'CT': {node: float(CT[node].x) for node in self.nodes},
-                     'Y': {node: Y[node].x for node in self.nodes}}
+            sol_k = {'S': {node: float(round(S[node].x)) for node in self.nodes},
+                    'SI': {node: float(round(SI[node].x)) for node in self.nodes},
+                    'CT': {node: float(round(CT[node].x)) for node in self.nodes},
+                    'Y': {node: Y[node].x for node in self.nodes}}
             sol_k['obj_value'] = sum(
                 [self.hc_of_node[node] * self.get_vb_value_of_node(node, sol_k['CT'][node]) for node in self.nodes])
             return sol_k
@@ -192,9 +195,9 @@ class IterativeMIP:
         model.solve()
 
         if model.status == COPT.OPTIMAL:
-            sol_k = {'S': {node: float(S[node].x) for node in self.nodes},
-                     'SI': {node: float(SI[node].x) for node in self.nodes},
-                     'CT': {node: float(CT[node].x) for node in self.nodes},
+            sol_k = {'S': {node: float(round(S[node].x)) for node in self.nodes},
+                     'SI': {node: float(round(SI[node].x)) for node in self.nodes},
+                     'CT': {node: float(round(CT[node].x)) for node in self.nodes},
                      'Y': {node: Y[node].x for node in self.nodes}}
             sol_k['obj_value'] = sum(
                 [self.hc_of_node[node] * self.get_vb_value_of_node(node, sol_k['CT'][node]) for node in self.nodes])

@@ -9,8 +9,6 @@ from gsm.gsm_solving_approach.hgna import HeuristicGeneralNetworksAlgorithm
 from gsm.gsm_solving_approach.ds import DynamicSloping
 from gsm.gsm_solving_approach.imip import IterativeMIP
 from gsm.gsm_solving_approach.sa import SimulatedAnnealing
-from gsm.gsm_solving_approach.simple_slp import SimpleSLP
-from gsm.gsm_solving_approach.if_slp import IterativeFixingSLP
 from gsm.gsm_solving_approach.id_slp import IterativeDecompositionSLP
 from gsm.gsm_solving_approach.solving_default_paras import SOLVER
 
@@ -21,11 +19,8 @@ _approach_map = {
     'DS': DynamicSloping,
     'IMIP': IterativeMIP,
     'SA': SimulatedAnnealing,
-    'Simple-SLP': SimpleSLP,
-    'IF-SLP': IterativeFixingSLP,
     'ID-SLP': IterativeDecompositionSLP
 }
-
 
 class GSMTask:
     def __init__(self, task_id, gsm_instance, approach_name, approach_paras: Optional[dict] = None):
@@ -45,12 +40,13 @@ class GSMTask:
         kwargs = copy(self.approach_paras)
         kwargs.update({'gsm_instance': self.gsm_instance})
         approach = _approach_map[self.approach_name](**kwargs)
+        self.approach = approach
         time0 = datetime.datetime.now()
         if approach.need_solver:
             self.policy = approach.get_policy(solver)
         else:
             self.policy = approach.get_policy()
-        self.task_time = datetime.datetime.now() - time0
+        self.task_time = (datetime.datetime.now() - time0).total_seconds()
         self.approach_paras.update(approach.get_approach_paras())
         self.task_status = 'SOLVED'
         self.gen_task_info()

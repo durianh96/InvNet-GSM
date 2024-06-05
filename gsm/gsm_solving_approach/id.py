@@ -34,7 +34,7 @@ class IterativeDecomposition(object):
         self.solved_pool = []
 
         self.sol = {'S': {}, 'SI': {}, 'CT': {}}
-
+        
         self.need_solver = None
 
     def get_policy(self):
@@ -96,6 +96,10 @@ class LocalApproach(object):
         self.stability_threshold = stability_threshold
         self.bound_value_type = bound_value_type
 
+        if input_si_lb_dict is None:
+            input_si_lb_dict = {}
+        if input_s_ub_dict is None:
+            input_s_ub_dict = {}
         self.input_s_ub_dict = input_s_ub_dict
         self.input_si_lb_dict = input_si_lb_dict
         self.sol = {'S': {}, 'SI': {}, 'CT': {}}

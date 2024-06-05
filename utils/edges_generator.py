@@ -1,49 +1,52 @@
 import random
+import numpy as np
 from collections import Counter
 from itertools import chain
 from typing import Optional
 
 
-def edges_generating_by_shape(num_nodes: int, max_depth: int, num_roots: int, num_sinks: int,
-                              num_edges: Optional[int] = None, num_jump_edges: int = 0):
+def edges_generating_by_shape(nodes_num: int, max_depth: int, roots_num: int, sinks_num: int,
+                              edges_num: Optional[int] = None, skip_edges_num: int = 0):
 
     if max_depth < 2:
         raise ValueError('Max depth of graph must be at least 2')
-    if num_nodes < num_roots + num_sinks + max_depth - 2:
+    if nodes_num < roots_num + sinks_num + max_depth - 2:
         raise ValueError('Num of nodes is too small')
 
     # sampling nodes
-    num_layer_nodes = [num_roots]
+    num_layer_nodes = [roots_num]
     for i in range(max_depth - 1):
         if len(num_layer_nodes) + 1 == max_depth:
-            num_layer_nodes.append(num_sinks)
+            num_layer_nodes.append(sinks_num)
         elif len(num_layer_nodes) + 2 == max_depth:
-            num_layer_nodes.append(num_nodes - (sum(num_layer_nodes) + num_sinks))
+            num_layer_nodes.append(nodes_num - (sum(num_layer_nodes) + sinks_num))
         else:
             # every layer at least have one node
             lb = 1
-            ub = num_nodes - (sum(num_layer_nodes) + num_sinks) - (max_depth - len(num_layer_nodes) - 2)
+            ub = nodes_num - (sum(num_layer_nodes) + sinks_num) - (max_depth - len(num_layer_nodes) - 2)
             num_layer_nodes.append(random.randint(lb, ub))
 
-    nodes = [i for i in range(num_nodes)]
+    nodes = [i for i in range(nodes_num)]
     layer_nodes = [nodes[sum(num_layer_nodes[: i]): sum(num_layer_nodes[: i + 1])] for i in range(max_depth)]
 
     # sampling edges
     num_edge_lb = [max(num_layer_nodes[i], num_layer_nodes[i + 1]) for i in range(max_depth - 1)]
     num_edge_ub = [num_layer_nodes[i] * num_layer_nodes[i + 1] for i in range(max_depth - 1)]
+    num_layer_edges = [lb for lb in num_edge_lb]
 
-    if num_edges is None:
-        num_edges = random.randint(sum(num_edge_lb) + num_jump_edges, sum(num_edge_ub) + num_jump_edges)
+    if edges_num is None:
+        # edges_num = random.randint(sum(num_edge_lb) + skip_edges_num, sum(num_edge_ub) + skip_edges_num)
+        edges_num = skip_edges_num + sum(num_layer_edges)
     else:
-        if num_edges < sum(num_edge_lb) + num_jump_edges:
+        if edges_num < sum(num_edge_lb) + skip_edges_num:
             raise ValueError('Num of edges is to small')
 
-        if num_edges > sum(num_edge_ub) + num_jump_edges:
+        if edges_num > sum(num_edge_ub) + skip_edges_num:
             raise ValueError('Num of edges is to large')
 
     # find a feasible solution
-    num_layer_edges = [lb for lb in num_edge_lb]
-    num_to_assign = num_edges - num_jump_edges - sum(num_layer_edges)
+    # num_layer_edges = [lb for lb in num_edge_lb]
+    num_to_assign = edges_num - skip_edges_num - sum(num_layer_edges)
     layer_choices = [i for i in range(max_depth - 1)]
     while num_to_assign > 0:
         i = random.choice(layer_choices)
@@ -75,29 +78,29 @@ def edges_generating_by_shape(num_nodes: int, max_depth: int, num_roots: int, nu
             layer_edges = layer_edges | set(random.sample(layer_choices, num_layer_edges[i] - len(layer_edges)))
         edges = edges | layer_edges
 
-    if num_jump_edges > 0:
+    if skip_edges_num > 0:
         if max_depth < 3:
             raise ValueError('Max depth of graph must be at least 3 to generate jumping edges')
         jump_choices = []
         for i in range(max_depth - 2):
             jump_choices.extend([(i, j) for j in range(i + 2, max_depth)])
 
-        jump_edges = set()
-        for index in range(num_jump_edges):
+        skip_edges = set()
+        for index in range(skip_edges_num):
             while True:
                 je = random.choice(jump_choices)
                 pred = random.choice(layer_nodes[je[0]])
                 succ = random.choice(layer_nodes[je[1]])
-                if index == 0 or (pred, succ) not in jump_edges:
+                if index == 0 or (pred, succ) not in skip_edges:
                     break
-            jump_edges.add((pred, succ))
+            skip_edges.add((pred, succ))
             edges.add((pred, succ))
-    edge_list = list(edges)
+    edge_list = [('N' + str(u).zfill(6), 'N' + str(v).zfill(6)) for (u, v) in edges]
     return edge_list
 
 
 def edges_generating_by_type(nodes_num: int,
-                             graph_type='GENERAL',
+                             graph_type='MIXED',
                              edges_num: Optional[int] = None):
     node_list = ['N' + str(i).zfill(6) for i in range(nodes_num)]
     if graph_type == 'SERIAL':
@@ -116,9 +119,13 @@ def edges_generating_by_type(nodes_num: int,
             v = unassigned_nodes.pop()
             u = random.choice(list(unassigned_nodes))
             edge_list.append((u, v))
+    # add mixed tree
+    elif graph_type == 'MIXED':
+        tree_list = tree_generating(nodes_num)
+        edge_list = [('N' + str(u).zfill(6), 'N' + str(v).zfill(6)) for (u, v) in tree_list]
     elif graph_type == 'GENERAL':
-        random_tree = tree_generating(nodes_num)
-        edge_list = [('N' + str(u).zfill(6), 'N' + str(v).zfill(6)) for (u, v) in random_tree]
+        mixed_tree = tree_generating(nodes_num)
+        edge_list = [('N' + str(u).zfill(6), 'N' + str(v).zfill(6)) for (u, v) in mixed_tree]
         if nodes_num < 10000:
             edge_choices = [(node_list[i], v) for i in range(nodes_num - 1) for v in node_list[i + 1:]]
         else:
@@ -176,5 +183,3 @@ def general_edges_generating(nodes_num, edges_num):
             adj_dict[j].add(k)
             adj_dict[k].add(j)
     return edge_list
-
-

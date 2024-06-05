@@ -72,7 +72,7 @@ class DynamicSloping:
                 else:
                     a_k.update({j: self.get_vb_value_of_node(j, CT_k[j]) / CT_k[j]})
             obj_value.append(sol_k['obj_value'])
-            if (i > 0) and (max(diff_k.values()) / len(self.nodes) <= self.termination_parm):
+            if (i > 0) and (max(diff_k.values()) <= self.termination_parm):
                 break
         sol = {'S': sol_k['S'], 'SI': sol_k['SI'], 'CT': sol_k['CT']}
         error_sol = check_solution_feasibility(self.gsm_instance, sol)
@@ -85,6 +85,7 @@ class DynamicSloping:
             sol['CT'] = {j: round(v, 2) for j, v in sol['CT'].items()}
 
             ds_sol = GSMSolution(nodes=self.nodes)
+
             ds_sol.update_sol(sol)
             oul_of_node = {node: self.get_db_value_of_node(node, ds_sol.CT_of_node[node]) for node in self.nodes}
             ss_of_node = {node: self.get_vb_value_of_node(node, ds_sol.CT_of_node[node]) for node in self.nodes}
@@ -100,7 +101,7 @@ class DynamicSloping:
         import gurobipy as gp
         from gurobipy import GRB
         m = gp.Model('ds_step')
-
+        
         # adding variables
         S = m.addVars(self.nodes, vtype=GRB.CONTINUOUS, lb=0, name='S')
         SI = m.addVars(self.nodes, vtype=GRB.CONTINUOUS, lb=0, name='SI')
@@ -120,9 +121,9 @@ class DynamicSloping:
         m.optimize()
 
         if m.status == GRB.OPTIMAL:
-            sol_k = {'S': {node: float(S[node].x) for node in self.nodes},
-                     'SI': {node: float(SI[node].x) for node in self.nodes},
-                     'CT': {node: float(CT[node].x) for node in self.nodes}}
+            sol_k = {'S': {node: float(round(S[node].x)) for node in self.nodes},
+                        'SI': {node: float(round(SI[node].x)) for node in self.nodes},
+                        'CT': {node: float(round(CT[node].x)) for node in self.nodes}}
             sol_k['obj_value'] = sum(
                 [self.hc_of_node[node] * self.get_vb_value_of_node(node, sol_k['CT'][node]) for node in self.nodes])
             return sol_k
@@ -164,9 +165,9 @@ class DynamicSloping:
         model.solve()
 
         if model.status == COPT.OPTIMAL:
-            sol_k = {'S': {node: float(S[node].x) for node in self.nodes},
-                     'SI': {node: float(SI[node].x) for node in self.nodes},
-                     'CT': {node: float(CT[node].x) for node in self.nodes}}
+            sol_k = {'S': {node: float(round(S[node].x)) for node in self.nodes},
+                     'SI': {node: float(round(SI[node].x)) for node in self.nodes},
+                     'CT': {node: float(round(CT[node].x)) for node in self.nodes}}
             sol_k['obj_value'] = sum(
                 [self.hc_of_node[node] * self.get_vb_value_of_node(node, sol_k['CT'][node]) for node in self.nodes])
         elif model.status == COPT.INFEASIBLE:

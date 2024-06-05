@@ -79,7 +79,7 @@ class PieceWiseLinear:
         if len(error_sol) > 0:
             logger.error(error_sol)
             raise Exception
-
+        
         else:
             sol['S'] = {j: round(v, 2) for j, v in sol['S'].items()}
             sol['SI'] = {j: round(v, 2) for j, v in sol['SI'].items()}
@@ -117,7 +117,7 @@ class PieceWiseLinear:
         jt_dict = {j: list(range(0, int(self.cum_lt_of_node[j]) + 1)) for j in self.nodes}
 
         m = gp.Model('pwl')
-
+        m.setParam('TimeLimit', self.time_limit)
         # service time
         S = m.addVars(self.nodes, vtype=GRB.CONTINUOUS, lb=0, name='S')
         # inbound service time
@@ -155,9 +155,9 @@ class PieceWiseLinear:
 
         # get optimized solution
         if m.status == GRB.OPTIMAL:
-            opt_sol = {'S': {node: round(float(S[node].x), 2) for node in self.nodes},
-                       'SI': {node: round(float(SI[node].x), 2) for node in self.nodes},
-                       'CT': {node: round(float(CT[node].x), 2) for node in self.nodes}}
+            opt_sol = {'S': {node: float(round(S[node].x)) for node in self.nodes},
+                       'SI': {node: float(round(SI[node].x)) for node in self.nodes},
+                       'CT': {node: float(round(CT[node].x)) for node in self.nodes}}
             return opt_sol
         elif m.status == GRB.INFEASIBLE:
             raise Exception('Infeasible model')
@@ -218,9 +218,9 @@ class PieceWiseLinear:
 
         # get optimized solution
         if m.status == COPT.OPTIMAL:
-            opt_sol = {'S': {node: round(float(S[node].x), 2) for node in self.nodes},
-                       'SI': {node: round(float(SI[node].x), 2) for node in self.nodes},
-                       'CT': {node: round(float(CT[node].x), 2) for node in self.nodes}}
+            opt_sol = {'S': {node: float(round(S[node].x)) for node in self.nodes},
+                       'SI': {node: float(round(SI[node].x)) for node in self.nodes},
+                       'CT': {node: float(round(CT[node].x)) for node in self.nodes}}
             return opt_sol
         elif m.status == COPT.INFEASIBLE:
             raise Exception('Infeasible model')

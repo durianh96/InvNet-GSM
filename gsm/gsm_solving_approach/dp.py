@@ -117,13 +117,20 @@ class DynamicProgramming:
         opt_sol['SI'][end_node] = end_node_SI
         opt_sol['S'][end_node] = end_node_S
 
+        # revise the recursive process: relax S(k) = SI(p(k)) by S(k) >= SI(p(k)) for pair (k, p(k))
         for node in self.sorted_list[-2::-1]:
             parent_node = self.parent_dict[node]
             if node in self.sub_succ_dict[parent_node]:
-                node_SI = max(opt_sol['S'][parent_node], min(self.SI_index[node]))
+                node_g_dict = {si: self.g_cost[node, si] for si in self.SI_index[node] 
+                               if si >= max(opt_sol['S'][parent_node], min(self.SI_index[node]))}
+                node_SI = min(node_g_dict, key=node_g_dict.get)
+                # node_SI = max(opt_sol['S'][parent_node], min(self.SI_index[node]))
                 node_S = self.g_argmin[node, node_SI]
             elif node in self.sub_pred_dict[parent_node]:
-                node_S = min(opt_sol['SI'][parent_node], max(self.S_index[node]))
+                node_f_dict = {s: self.f_cost[node, s] for s in self.S_index[node] 
+                               if s <= min(opt_sol['SI'][parent_node], max(self.S_index[node]))}
+                node_S = min(node_f_dict, key=node_f_dict.get)
+                # node_S = min(opt_sol['SI'][parent_node], max(self.S_index[node]))
                 node_SI = self.f_argmin[node, node_S]
             else:
                 raise Exception

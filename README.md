@@ -2,7 +2,7 @@
 
 This library is part of an open source project called [InvNet](https://durianh96.github.io/InvNet-website/), and it is based on our paper:
 
-- Huang D, Yu J, Yang C, Optimizing large-scale inventory networks: An iterative decomposition approach (Revision at EJOR).
+- Huang D, Yu J, Yang C, Optimizing large-scale inventory networks: An iterative decomposition approach (Revision at IISE Transactions).
 
 This library provides the Python codes for data loading, data generation and all methods considered in this paper.
 
@@ -97,13 +97,7 @@ Other seven approaches of solving GSM are provided in this library:
   This paper investigates the performance of three meta-heuristics, local search, genetic algorithm, and simulated annealing on solving GSM. SA outperforms the other two meta-heuristics with respect to speed and solution quality. 
   Therefore we choose SA as a representative of meta-heuristics. 
 
-- **Simple sequential linear programming (Simple-SLP)** from (Huang et al. 2022).
-  In the ID approach, if the underlying graph can not be decomposed, we then simply output the local solution with the smallest total inventory cost. 
-  We can also apply this approach directly to solve for GSM without decomposition.
-  We call this approach **Simple-SLP**. The parameter *local sol num* stands for how many local solutions need to be found. With larger *local sol num*, more local solutions will be found.
-  Therefore, the possibility of finding a lower-cost solution will also be higher. 
-
-## Data loading and  generating
+## Data loading and generating
 
 A GSM instance $i$ contains a graph $\mathcal{G}_i = (\mathcal{N}_i, \mathcal{A}_i)$, all properties of nodes and edges related to GSM, including demand functions, unit holding costs, lead times, and service time requirements for demand nodes.
 
@@ -115,60 +109,55 @@ First, we import some functions for data processing:
 
 
 ```python
-from utils.edges_loader import edges_loading_from_willems, edges_loading_from_huang
-from utils.edges_generator import edges_generating_by_type
+from utils.edges_generator import edges_generating_by_type, edges_generating_by_shape
 from gsm.generator.gsm_instance_generator import gsm_instance_generating_given_paras_ranges
 ```
 
-User can load their own edges or generating edges then building an instance. 
-We provide two exist graph resource for papers. And provide a edges generation function for users.
+We provide function **'edges_generating_by_type'** to generate tree graphs with the specified number of nodes and network structure. 
 
-We provide function **'edges_loading_from_willems'** to load edges from (Willems 2008).
-This paper provides 38 real supply chains, which all have a general network structure.
-They are also used in Section 4.1 of (Huang et al. 2022).
-The parameter *data_id* stands for the index of their chains.
+To use it, users need to specify the following two parameters:
 
-Take chain 10 as an example, we can load the edges with the following codes:
+- *nodes num*: the number of nodes;
+- *graph type*: the graph structure, it can be 'serial', 'assembly', 'distribution' and 'mixed'.
 
-
-```python
-willems_edges = edges_loading_from_willems(data_id=10)
-print(willems_edges[:5])
-```
-
-    [('N006', 'N054'), ('N026', 'N053'), ('N001', 'N055'), ('N012', 'N052'), ('N050', 'N056')]
-
-
- We provide function **'edges_loading_from_huang'** to load edges presented in Table 4 of (Huang et al. 2022).
- the parameter *avg degree* stands for the average degree of those four graphs.
-
- To load the corresponding edges with average degree equals to 5, we can:
-
-
-```python
-huang_edges = edges_loading_from_huang(avg_deg=5)
-```
-
-We provide function **'edges_generating_by_type'** to generate graphs with the specified number of nodes, number of edges, and network structure. 
-
-The idea is presented in Section 4.2 of (Huang et al. 2022). 
-To use it, users need to specify the following three parameters:
-
-- *nodes num*: the number of nodes.
-- *edges num*: the number of edges (can be empty for serial, assembly, and distribution graph).
-- *graph type*: the graph structure, it can be 'serial', 'assembly', 'distribution' and 'general'.
-
-For example, we can generate a general structure graph with 1000 nodes and 5000 edges: 
+For example, we can generate a mixed tree structure graph with 1000 nodes: 
 
 
 ```python
 nodes_num = 1000
-edges_num = 5000
-graph_type = 'GENERAL'
-random_edges = edges_generating_by_type(nodes_num=nodes_num, edges_num=edges_num, graph_type=graph_type)
+graph_type = 'MIXED'
+tree_edges = edges_generating_by_type(nodes_num=nodes_num,
+                                      graph_type=graph_type)
+print(tree_edges[:5])
 ```
 
-We provide function **'gsm_instance_generating_given_paras_ranges'** to generate random properties and build an GSM instance. The idea is presented in Appendix A of (Huang et al. 2022).
+We provide function **'edges_generating_by_shape'** to generate multi-echelon graphs with the specified number of nodes, number of max relative depth, number of root and sink nodes, and number of skip edges. 
+
+The idea is presented in Section 4.3 of (Huang et al. 2022). 
+To use it, users need to specify the following five parameters:
+
+- *nodes num*: the number of nodes;
+- *roots num* and *sinks num*: the number of root and sink nodes in graph;
+- *maximum relative depth*: the maximum relative depth of sink to graph root nodes;
+- *skip edges num*: the number of edges that skip echelons in graph.
+
+For example, we can generate a multi-echelon graph with 1000 nodes, 100 roots and 100 sinks, 1000 skip edges num with the maximum relative depth being 6:
+
+
+```python
+nodes_num = 1000
+roots_num = 100
+sinks_num = 100
+max_depth = 6
+skip_edges_num = 1000
+general_edges = edges_generating_by_shape(nodes_num=nodes_num,
+                                         roots_num=roots_num,
+                                         sinks_num=sinks_num,
+                                         max_depth=max_depth,
+                                         skip_edges_num=skip_edges_num)
+```
+
+We provide function **'gsm_instance_generating_given_paras_ranges'** to generate random properties and build an GSM instance. The idea is presented in Appendix B of (Huang et al. 2022).
 To use it, users need to specify the following parameters:
 
 - *qty lb* and *qty ub*: the edge proportion range that are set to 1 and 3 as default;
@@ -179,13 +168,12 @@ To use it, users need to specify the following parameters:
 - *demand std lb* and *demand std ub*: the demand standard deviation range that are set to 1 and 10 as default;
 - *tau*: the service level that is set to 0.95 as the default.
 
-With this function and the default parameters, we can generate three instances for the above three edges: 
+With this function and the default parameters, we can generate three instances for the above three edges:
 
 
 ```python
-willems_gsm_instance = gsm_instance_generating_given_paras_ranges(instance_id='INSTANCE_01', edges=willems_edges)
-huang_gsm_instance = gsm_instance_generating_given_paras_ranges(instance_id='INSTANCE_02', edges=huang_edges)
-random_gsm_instance = gsm_instance_generating_given_paras_ranges(instance_id='INSTANCE_03', edges=random_edges)
+tree_gsm_instance = gsm_instance_generating_given_paras_ranges(instance_id='INSTANCE_01', edges=tree_edges)
+general_gsm_instance = gsm_instance_generating_given_paras_ranges(instance_id='INSTANCE_02', edges=general_edges)
 ```
 
 ## Inventory policy optimizing
@@ -198,38 +186,33 @@ To optimize the inventory policy on given instance, users first need to create a
 
 As mentioned before, for general structure problems, we provide seven approaches:
 
+- 'DP'
 - 'HGNA'
 - 'PWL'
 - 'DS'
 - 'IMIP'
 - 'SA'
-- 'Simple-SLP'
 - 'ID-SLP'
 
 The default parameters of these approaches is given in 'solving_default_paras.py'. More details about them can be found in (Huang et al. 2022).
 
-For example, we can create three tasks from above instances with HGNA, DS and ID-SLP, respectively.
+For example, we can create three tasks from above instances with DP and ID-SLP, respectively.
 
 
 ```python
 from gsm.gsm_task import GSMTask
-willems_task = GSMTask(task_id='TASK_01', gsm_instance=willems_gsm_instance, approach_name='HGNA')
-huang_task = GSMTask(task_id='TASK_02', gsm_instance=huang_gsm_instance, approach_name='DS')
-random_task = GSMTask(task_id='TASK_03', gsm_instance=huang_gsm_instance, approach_name='ID-SLP')
+tree_task = GSMTask(task_id='TASK_01', gsm_instance=tree_gsm_instance, approach_name='DP')
+general_task = GSMTask(task_id='TASK_02', gsm_instance=general_gsm_instance, approach_name='ID-SLP')
 ```
 
-For the first task loaded, we optimize the inventory policy with HGNA:
+For the first task loaded, we optimize the inventory policy with DP:
 
 
 ```python
-willems_task.run()
+tree_task.run()
 ```
 
-    2023-03-08 20:25:53,277 - /Users/durian/Nutstore Files/Research/InvNet/gsm/gsm_sol.py[line:249] - INFO: HGNA_safety stock cost is 1507.64
-    2023-03-08 20:25:53,278 - /Users/durian/Nutstore Files/Research/InvNet/utils/system_utils.py[line:29] - DEBUG: func @get_policy use 1.16721 (s)
-
-
-Except for the HGNA and SA, users can specify the solver for other approaches that involve solving linear or integer programming problems. 
+Except for the DP, HGNA and SA, users can specify the solver for other approaches that involve solving linear or integer programming problems. 
 We provide Gurobi (https://www.gurobi.com/) and COPT (https://www.shanshu.ai/copt) choices with their naive Python interface. We also use pyomo 6.4.2 for unified modeling in our library so that the reader can use any solver supported by pyomo.
 
 We provide five choices of solver:
@@ -242,19 +225,12 @@ We provide five choices of solver:
 
 For more solvers such as Cplex, GLPK and SCIP, users can slightly modify the code of approach to add support.
 
-Here, for the left two tasks generated from (Huang et al. 2022), we use Gurobi to optimize the policy with DS and ID-SLP approach: 
+Here, for the left task generated from (Huang et al. 2022), we use Gurobi to optimize the policy with ID-SLP approach:
 
 
 ```python
-huang_task.run(solver='GRB')
+general_task.run()
 ```
-
-
-
-```python
-random_task.run(solver='GRB')
-```
-
 
 ## Reference
 
@@ -265,4 +241,3 @@ random_task.run(solver='GRB')
 - Humair S, Willems SP (2011) TECHNICAL NOTE—Optimizing Strategic Safety Stock Placement in General Acyclic Networks. Operations Research 59:781–787. https://doi.org/10.1287/opre.1100.0913
 - Magnanti TL, Shen Z-JM, Shu J, et al (2006) Inventory placement in acyclic supply chain networks. Operations Research Letters 34:228–238
 - Shu J, Karimi IA (2009) Efficient heuristics for inventory placement in acyclic networks. Computers & Operations Research 36:2899–2904. https://doi.org/10.1016/j.cor.2009.01.001
-
