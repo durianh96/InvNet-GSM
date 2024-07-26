@@ -5,6 +5,16 @@ from itertools import chain
 from typing import Optional
 
 
+def _connecting_nodes(pred_nodes: list, succ_nodes: list):
+    a, b = len(pred_nodes), len(succ_nodes)
+    edges = set()
+    for pred in pred_nodes:
+        edges.add((pred, succ_nodes[random.randint(0, b - 1)]))
+    for succ in succ_nodes:
+        edges.add((pred_nodes[random.randint(0, a - 1)], succ))
+    return edges
+
+
 def edges_generating_by_shape(nodes_num: int, max_depth: int, roots_num: int, sinks_num: int,
                               edges_num: Optional[int] = None, skip_edges_num: int = 0):
 
@@ -28,15 +38,20 @@ def edges_generating_by_shape(nodes_num: int, max_depth: int, roots_num: int, si
 
     nodes = [i for i in range(nodes_num)]
     layer_nodes = [nodes[sum(num_layer_nodes[: i]): sum(num_layer_nodes[: i + 1])] for i in range(max_depth)]
+    
+    edges = set()
+    num_layer_edges = [0 for depth in range(max_depth)]
+    for i in range(max_depth - 1):
+        connected_edges = _connecting_nodes(layer_nodes[i], layer_nodes[i + 1])
+        edges = edges | connected_edges
+        num_layer_edges[i] = len(connected_edges)
 
     # sampling edges
     num_edge_lb = [max(num_layer_nodes[i], num_layer_nodes[i + 1]) for i in range(max_depth - 1)]
     num_edge_ub = [num_layer_nodes[i] * num_layer_nodes[i + 1] for i in range(max_depth - 1)]
-    num_layer_edges = [lb for lb in num_edge_lb]
 
     if edges_num is None:
-        # edges_num = random.randint(sum(num_edge_lb) + skip_edges_num, sum(num_edge_ub) + skip_edges_num)
-        edges_num = skip_edges_num + sum(num_layer_edges)
+        edges_num = skip_edges_num + len(connected_edges)
     else:
         if edges_num < sum(num_edge_lb) + skip_edges_num:
             raise ValueError('Num of edges is to small')
@@ -45,38 +60,27 @@ def edges_generating_by_shape(nodes_num: int, max_depth: int, roots_num: int, si
             raise ValueError('Num of edges is to large')
 
     # find a feasible solution
-    # num_layer_edges = [lb for lb in num_edge_lb]
-    num_to_assign = edges_num - skip_edges_num - sum(num_layer_edges)
+    num_to_assign = edges_num - skip_edges_num - len(connected_edges)
     layer_choices = [i for i in range(max_depth - 1)]
+    num_layer_assign_edges = [0 for depth in range(max_depth)]
     while num_to_assign > 0:
         i = random.choice(layer_choices)
         if num_layer_edges[i] < num_edge_ub[i]:
             num_layer_edges[i] += 1
+            num_layer_assign_edges[i] += 1
             num_to_assign -= 1
         else:
             layer_choices.remove(i)
 
-    edges = set()
+    layer_assign_edges = set()
     for i in range(max_depth - 1):
         pred_nodes = layer_nodes[i]
         succ_nodes = layer_nodes[i + 1]
-        if len(pred_nodes) >= len(succ_nodes):
-            first = random.sample(pred_nodes, len(succ_nodes))
-            layer_edges = set(list(zip(first, succ_nodes)))
-            second = set(pred_nodes) - set(first)
-            layer_edges = layer_edges | set(list(zip(second, random.choices(succ_nodes, k=len(second)))))
-
-        else:
-            first = random.sample(succ_nodes, len(pred_nodes))
-            layer_edges = set(list(zip(pred_nodes, first)))
-            second = set(succ_nodes) - set(first)
-            layer_edges = layer_edges | set(list(zip(random.choices(pred_nodes, k=len(second)), second)))
-
-        if len(layer_edges) < num_layer_edges[i]:
+        if num_layer_assign_edges[i] > 0:
             layer_choices = [(pred, succ) for pred in pred_nodes for succ in succ_nodes
-                             if (pred, succ) not in layer_edges]
-            layer_edges = layer_edges | set(random.sample(layer_choices, num_layer_edges[i] - len(layer_edges)))
-        edges = edges | layer_edges
+                             if (pred, succ) not in edges]
+            layer_assign_edges = layer_assign_edges | set(random.sample(layer_choices, num_layer_assign_edges[i]))
+        edges = edges | layer_assign_edges
 
     if skip_edges_num > 0:
         if max_depth < 3:
@@ -85,6 +89,11 @@ def edges_generating_by_shape(nodes_num: int, max_depth: int, roots_num: int, si
         for i in range(max_depth - 2):
             jump_choices.extend([(i, j) for j in range(i + 2, max_depth)])
 
+        num_jump_choices = sum([len(layer_nodes[je[0]]) * len(layer_nodes[je[1]]) 
+                                for je in jump_choices])
+        if num_jump_choices < skip_edges_num:
+            raise ValueError('Num of skip edges is too big')
+        
         skip_edges = set()
         for index in range(skip_edges_num):
             while True:
@@ -183,3 +192,103 @@ def general_edges_generating(nodes_num, edges_num):
             adj_dict[j].add(k)
             adj_dict[k].add(j)
     return edge_list
+
+
+# def edges_generating_by_depth(nodes_num: int, max_depth: int, roots_num: int, sinks_num: int,
+#                               edges_num: Optional[int] = None, skip_edges_num: int = 0):
+
+#     if max_depth < 2:
+#         raise ValueError('Max depth of graph must be at least 2')
+#     if nodes_num < roots_num + sinks_num + max_depth - 2:
+#         raise ValueError('Num of nodes is too small')
+
+#     # sampling nodes
+#     num_layer_nodes = [roots_num]
+#     for i in range(max_depth - 1):
+#         if len(num_layer_nodes) + 1 == max_depth:
+#             num_layer_nodes.append(sinks_num)
+#         elif len(num_layer_nodes) + 2 == max_depth:
+#             num_layer_nodes.append(nodes_num - (sum(num_layer_nodes) + sinks_num))
+#         else:
+#             # every layer at least have one node
+#             lb = 1
+#             ub = nodes_num - (sum(num_layer_nodes) + sinks_num) - (max_depth - len(num_layer_nodes) - 2)
+#             num_layer_nodes.append(random.randint(lb, ub))
+
+#     nodes = [i for i in range(nodes_num)]
+#     layer_nodes = [nodes[sum(num_layer_nodes[: i]): sum(num_layer_nodes[: i + 1])] for i in range(max_depth)]
+
+#     # sampling edges
+#     num_edge_lb = [max(num_layer_nodes[i], num_layer_nodes[i + 1]) for i in range(max_depth - 1)]
+#     num_edge_ub = [num_layer_nodes[i] * num_layer_nodes[i + 1] for i in range(max_depth - 1)]
+#     num_layer_edges = [lb for lb in num_edge_lb]
+
+#     if edges_num is None:
+#         # edges_num = random.randint(sum(num_edge_lb) + skip_edges_num, sum(num_edge_ub) + skip_edges_num)
+#         edges_num = skip_edges_num + sum(num_layer_edges)
+#     else:
+#         if edges_num < sum(num_edge_lb) + skip_edges_num:
+#             raise ValueError('Num of edges is to small')
+
+#         if edges_num > sum(num_edge_ub) + skip_edges_num:
+#             raise ValueError('Num of edges is to large')
+
+#     # find a feasible solution
+#     # num_layer_edges = [lb for lb in num_edge_lb]
+#     num_to_assign = edges_num - skip_edges_num - sum(num_layer_edges)
+#     layer_choices = [i for i in range(max_depth - 1)]
+#     while num_to_assign > 0:
+#         i = random.choice(layer_choices)
+#         if num_layer_edges[i] < num_edge_ub[i]:
+#             num_layer_edges[i] += 1
+#             num_to_assign -= 1
+#         else:
+#             layer_choices.remove(i)
+
+#     edges = set()
+#     for i in range(max_depth - 1):
+#         pred_nodes = layer_nodes[i]
+#         succ_nodes = layer_nodes[i + 1]
+#         if len(pred_nodes) >= len(succ_nodes):
+#             first = random.sample(pred_nodes, len(succ_nodes))
+#             layer_edges = set(list(zip(first, succ_nodes)))
+#             second = set(pred_nodes) - set(first)
+#             layer_edges = layer_edges | set(list(zip(second, random.choices(succ_nodes, k=len(second)))))
+
+#         else:
+#             first = random.sample(succ_nodes, len(pred_nodes))
+#             layer_edges = set(list(zip(pred_nodes, first)))
+#             second = set(succ_nodes) - set(first)
+#             layer_edges = layer_edges | set(list(zip(random.choices(pred_nodes, k=len(second)), second)))
+
+#         if len(layer_edges) < num_layer_edges[i]:
+#             layer_choices = [(pred, succ) for pred in pred_nodes for succ in succ_nodes
+#                              if (pred, succ) not in layer_edges]
+#             layer_edges = layer_edges | set(random.sample(layer_choices, num_layer_edges[i] - len(layer_edges)))
+#         edges = edges | layer_edges
+
+#     if skip_edges_num > 0:
+#         if max_depth < 3:
+#             raise ValueError('Max depth of graph must be at least 3 to generate jumping edges')
+#         jump_choices = []
+#         for i in range(max_depth - 2):
+#             jump_choices.extend([(i, j) for j in range(i + 2, max_depth)])
+
+#         num_jump_choices = sum([len(layer_nodes[je[0]]) * len(layer_nodes[je[1]]) 
+#                                 for je in jump_choices])
+#         if num_jump_choices < skip_edges_num:
+#             raise ValueError('Num of skip edges is too big')
+        
+        
+#         skip_edges = set()
+#         for index in range(skip_edges_num):
+#             while True:
+#                 je = random.choice(jump_choices)
+#                 pred = random.choice(layer_nodes[je[0]])
+#                 succ = random.choice(layer_nodes[je[1]])
+#                 if index == 0 or (pred, succ) not in skip_edges:
+#                     break
+#             skip_edges.add((pred, succ))
+#             edges.add((pred, succ))
+#     edge_list = [('N' + str(u).zfill(6), 'N' + str(v).zfill(6)) for (u, v) in edges]
+#     return edge_list
