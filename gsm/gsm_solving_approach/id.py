@@ -37,6 +37,8 @@ class IterativeDecomposition(object):
         
         self.need_solver = None
 
+        self.decompose_round_of_stable_node = {}
+
     def get_policy(self):
         pass
 
@@ -106,6 +108,8 @@ class LocalApproach(object):
         self.gsm_sol_set = GSMSolutionSet(nodes=self.nodes, lt_of_node=self.lt_of_node,
                                           cum_lt_of_node=self.cum_lt_of_node, sla_of_node=self.sla_of_node)
         self.status = 'TO_RUN'
+
+        self.stable_nodes = set()
 
     def run(self):
         pass

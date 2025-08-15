@@ -2,6 +2,7 @@ import datetime
 from typing import Optional
 from copy import copy
 import pandas as pd
+import numpy as np
 import os
 from gsm.gsm_solving_approach.dp import DynamicProgramming
 from gsm.gsm_solving_approach.pwl import PieceWiseLinear
@@ -71,6 +72,9 @@ class GSMTask:
         sol_list = [(node, self.policy.S_of_node[node], self.policy.SI_of_node[node], self.policy.CT_of_node[node])
                     for node in self.policy.nodes]
         sol_df = pd.DataFrame(sol_list, columns=['node_id', 'S', 'SI', 'CT'])
+        sol_df['stable_round'] = sol_df['node_id'].map(self.policy.decompose_round_of_stable_node).fillna(np.nan)
+        sol_df['if_CT_0'] = sol_df.apply(lambda x: 1 if x['CT'] == 0 else 0, axis=1)
+        sol_df['if_CT_L'] = sol_df.apply(lambda x: 1 if x['CT'] == self.gsm_instance.lt_of_node[x['node_id']] else 0, axis=1)
 
         policy_info = [self.policy.oul_of_node, self.policy.ss_of_node]
         policy_df = pd.DataFrame(policy_info).T.reset_index()

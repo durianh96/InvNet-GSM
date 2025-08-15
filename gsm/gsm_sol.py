@@ -12,6 +12,9 @@ class GSMSolution:
         self.oul_of_node = {node: None for node in nodes}
         self.ss_of_node = {node: None for node in nodes}
         self.ss_cost = None
+
+        self.stable_nodes = set()
+        self.decompose_round_of_stable_node = {}
     
     def collect_sol_set(self, sol_set):
         self.sol_set = sol_set
@@ -29,6 +32,10 @@ class GSMSolution:
 
     def update_ss_cost(self, ss_cost):
         self.ss_cost = ss_cost
+    
+    def update_stable_info(self, decompose_round_of_stable_node):
+        self.stable_nodes = set(decompose_round_of_stable_node.keys())
+        self.decompose_round_of_stable_node.update(decompose_round_of_stable_node)
 
 
 class GSMSolutionSet:

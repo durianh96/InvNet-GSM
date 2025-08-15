@@ -53,9 +53,10 @@ class PieceWiseLinear:
         if self.bound_value_type == 'APPROX':
             pwl_vb_paras = self.demand_bound_pool[n_id].get_pwl_vb_paras(ct_value)
         elif self.bound_value_type == 'FUNC':
-            vb_gradient_value = self.demand_bound_pool[n_id].vb_gradient_func(ct_value)
-            vb_intercept_value = self.demand_bound_pool[n_id].vb_func(ct_value) - vb_gradient_value * ct_value
-            pwl_vb_paras = {'gradient': vb_gradient_value, 'intercept': vb_intercept_value}
+            # vb_gradient_value = self.demand_bound_pool[n_id].vb_gradient_func(ct_value)
+            # vb_intercept_value = self.demand_bound_pool[n_id].vb_func(ct_value) - vb_gradient_value * ct_value
+            # pwl_vb_paras = {'gradient': vb_gradient_value, 'intercept': vb_intercept_value}
+            pwl_vb_paras = self.demand_bound_pool[n_id].get_pwl_vb_paras(ct_value)
         else:
             raise AttributeError('wrong bound value type')
         return pwl_vb_paras

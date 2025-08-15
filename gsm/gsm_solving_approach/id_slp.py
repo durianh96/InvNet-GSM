@@ -57,6 +57,10 @@ class IterativeDecompositionSLP(IterativeDecomposition):
             self.sol['S'].update(single_slp_model.sol['S'])
             self.sol['SI'].update(single_slp_model.sol['SI'])
             self.sol['CT'].update(single_slp_model.sol['CT'])
+
+            self.decompose_round_of_stable_node.update({node: single_slp_model.decompose_round 
+                                                   for node in single_slp_model.stable_nodes})
+            
             if single_slp_model.status == 'SPLIT':
                 self.to_run_pool.extend(single_slp_model.sub_pool)
 
@@ -66,6 +70,8 @@ class IterativeDecompositionSLP(IterativeDecomposition):
         
         id_slp_sol = GSMSolution(nodes=self.nodes)
         id_slp_sol.update_sol(self.sol)
+
+        id_slp_sol.update_stable_info(self.decompose_round_of_stable_node)
 
         oul_of_node = {node: self.get_db_value_of_node(node, id_slp_sol.CT_of_node[node]) for node in self.nodes}
         ss_of_node = {node: self.get_vb_value_of_node(node, id_slp_sol.CT_of_node[node]) for node in self.nodes}
@@ -175,13 +181,13 @@ class LocalSLP(LocalApproach):
         if len(sub_gsm_instance_list) > 1:
             self.status = 'SPLIT'
             # update stable nodes
-            stable_nodes = self.local_sol_info['completely_fix_nodes']
+            self.stable_nodes = self.local_sol_info['completely_fix_nodes']
             for sub_gsm_instance in sub_gsm_instance_list:
                 sub_s_ub = {node: s_ub_dict[node] for node in sub_gsm_instance.nodes if node in s_ub_dict.keys()}
                 sub_si_lb = {node: si_lb_dict[node] for node in sub_gsm_instance.nodes if node in si_lb_dict.keys()}
                 if len(sub_gsm_instance.nodes) == 1:
                     single_node = list(sub_gsm_instance.nodes)[0]
-                    if single_node in stable_nodes:
+                    if single_node in self.stable_nodes:
                         self.sol['S'][single_node] = self.local_sol_info['completely_fix_S'][single_node]
                         self.sol['SI'][single_node] = self.local_sol_info['completely_fix_SI'][single_node]
                         self.sol['CT'][single_node] = self.local_sol_info['completely_fix_CT'][single_node]
